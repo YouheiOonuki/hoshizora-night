@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>WebGL の技術確認｜ほしぞらさんぽ フル版｜yorozu-craft</title>
+  <!-- 技術確認のページ。検索に出さない -->
+  <meta name="robots" content="noindex, nofollow">
+  <!-- Google AdSense: フル版は広告なし。サイト所有確認の meta だけ（D118） -->
+  <meta name="google-adsense-account" content="ca-pub-5375267956079717">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../night.css">
+</head>
+<body>
+  <canvas id="sky" aria-label="星表の星をすべて点で描き、日周運動で回す"></canvas>
+  <p id="fps" class="fps" aria-hidden="true"></p>
+  <p id="nogl" class="nogl" hidden>この端末では描けません。<a href="/hoshizora-sanpo/">軽い版（ほしぞらさんぽ）へ</a></p>
+
+  <script src="../render/gate.js"></script>
+  <script src="../engine/astro.js"></script>
+  <script src="../engine/catalog.js"></script>
+  <script src="../render/sky.js"></script>
+  <script src="../render/gl-stars.js"></script>
+  <script>
+  (function () {
+    // 星表 3249 点を描き、1 恒星日を 60 秒で回す。fps は 2 秒ごとに window.__fps に入れる（tools/measure-webgl.cjs が読む）
+    const canvas = document.getElementById('sky');
+    if (!NightGate.guard({ document, location }).ok) return; // 無ければ通常版へ送る
+    const gl = canvas.getContext('webgl', { antialias: false, alpha: false }) || canvas.getContext('experimental-webgl');
+    const bufs = NightSky.catalogBuffers(CATALOG);
+    const r = NightGL.create(gl, bufs, { style: 0, view: 'south' });
+    const TOKYO = { lat: 35.681, lon: 139.767 };
+    const t0 = Date.parse('2027-01-15T21:00:00+09:00'), SPEED = 86164.1 / 60; // 1 恒星日 / 60 秒
+    const start = performance.now();
+    let frames = 0, last = start;
+    const out = document.getElementById('fps');
+    window.__stars = bufs.n;
+    function frame(now) {
+      NightGL.fit(canvas);
+      const ms = t0 + (now - start) * SPEED;
+      r.draw(NightSky.starMatrix(ms, TOKYO.lat, TOKYO.lon), (now - start) / 1000);
+      frames++;
+      if (now - last >= 2000) {
+        window.__fps = frames * 1000 / (now - last);
+        out.textContent = `${bufs.n} stars ${window.__fps.toFixed(1)} fps`;
+        frames = 0; last = now;
+      }
+      requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+  })();
+  </script>
+  <!-- Cloudflare Web Analytics（Cookie を使わないアクセス解析） --><script type='module' src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "b79bf821e1fd4b6683866d493b1de426"}'></script><!-- End Cloudflare Web Analytics -->
+</body>
+</html>

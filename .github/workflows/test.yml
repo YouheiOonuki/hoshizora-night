@@ -17,3 +17,5 @@ jobs:
         with:
           node-version: 22
       - run: node --test tests/*.test.js
+      # engine/ の写しが通常版（hoshizora-sanpo）の記録した版と 1 バイトも違わないか。main が進んでいればお知らせだけ出す
+      - run: node tools/sync-from-sanpo.mjs --check
