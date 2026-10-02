@@ -1,0 +1,13 @@
+/* フル版の共通の最小限（全画面の canvas と、WebGL が無いときの案内）。見せ方はまだ作らない */
+html, body { margin: 0; height: 100%; background: #04060d; color: #cfd6e6;
+  font-family: "Noto Sans JP", "Hiragino Sans", "Hiragino Kaku Gothic ProN", Meiryo, system-ui, sans-serif; }
+body:has(canvas) { overflow: hidden; }
+canvas { display: block; width: 100vw; height: 100vh; height: 100dvh; touch-action: none; }
+a { color: #9fc3ff; }
+.fps { position: fixed; left: 8px; bottom: 8px; margin: 0; font: 12px/1.4 ui-monospace, monospace; opacity: .7; }
+.nogl { position: fixed; inset: auto 16px 40% 16px; text-align: center; font-size: 1rem; }
+.stub { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 0 16px; text-align: center; }
+/* 試し描き B: 全天の円の縁（canvas の上に重ねる細い線。中は透ける） */
+.sk-b { background: #ede5d6; }
+.dome-ring { position: fixed; left: 50%; top: 50%; width: 96vmin; height: 96vmin; transform: translate(-50%, -50%);
+  border-radius: 50%; box-shadow: 0 0 0 1px #3a3025; pointer-events: none; z-index: 1; }
