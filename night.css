@@ -58,3 +58,6 @@ a { color: #9fc3ff; }
 .conname { position: fixed; left: 0; top: 0; font-size: 11px;
   color: rgba(170, 195, 255, .62); letter-spacing: .06em; pointer-events: none; white-space: nowrap; }
 #lines[aria-pressed="true"] { border-color: #8fb0ff; color: #cfdcff; background: rgba(60, 90, 170, .35); }
+
+/* キーボード操作のときだけ出すフォーカスの輪（:focus-visible。マウス・タップでは出ない）。夜空の暗い地に映える淡い金色 */
+.app :focus-visible, a:focus-visible { outline: 2px solid #ffd98a; outline-offset: 2px; }
