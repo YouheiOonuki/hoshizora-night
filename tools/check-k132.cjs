@@ -8,7 +8,8 @@
 //  4 動かない端末: CPU を遅くすると 4 等まで → 通常版へのリンク
 //  5 WebGL が無い: 通常版へ送る（日本語 → /hoshizora-sanpo/、英語 → /hoshizora-sanpo/en/）
 //  6 共有: #lat,lon,unixtime の URL が月ごとのページを指し、開くと同じ時刻・場所で止まっている
-//  7 位置情報を拒否しても、都道府県庁の一覧で場所を変えられる
+//  7 位置情報を拒否しても、都道府県庁の一覧で場所を変えられる。許可すれば「東京都付近」と緯度経度が出る
+//  8 オーナー決定 2026-10-03 の演出: 開いたときの演出と流れ星は reduced motion で出ない／出るときは出る。星座線を全部出す切り替え
 'use strict';
 const fs = require('node:fs');
 const path = require('node:path');
@@ -37,7 +38,7 @@ const GEM = '#35.69,139.69,1797256800';   // 2026-12-14 23:00 東京（ふたご
   for (const lang of ['ja', 'en']) {
     const ctx = await ctxOf(), p = await ctx.newPage(), errors = [];
     p.on('pageerror', (e) => errors.push(e.message));
-    await p.goto(`${base}${lang === 'en' ? 'en/' : ''}?probe=off${GEM}`); await ready(p); await p.waitForTimeout(600);
+    await p.goto(`${base}${lang === 'en' ? 'en/' : ''}?probe=off${GEM}`); await ready(p); await p.waitForTimeout(4300);   // 開いたときの演出（3.5 秒）の後
     await shot(p, `iphone-${lang}.png`);
     const lay = await p.evaluate(() => {
       const box = (s) => { const r = document.querySelector(s).getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height, r: r.right, b: r.bottom }; };
@@ -53,11 +54,16 @@ const GEM = '#35.69,139.69,1797256800';   // 2026-12-14 23:00 東京（ふたご
     if (pos) { await p.touchscreen.tap(pos.x, pos.y); await p.waitForTimeout(1300); }
     lay.picked = await p.evaluate(() => window.__night.picked);
     await shot(p, `iphone-${lang}-tap.png`);
+    await p.click('#lines'); await p.waitForTimeout(400);
+    lay.allLines = await p.evaluate(() => ({ on: window.__night.allLines, names: [...document.querySelectorAll('.conname')].filter((e) => !e.hidden).map((e) => e.textContent) }));
+    await shot(p, `iphone-${lang}-lines.png`);
+    await p.click('#lines');
     await p.click('#place'); await p.waitForTimeout(300);
     await shot(p, `iphone-${lang}-places.png`);
     lay.panelScrollW = await p.evaluate(() => document.scrollingElement.scrollWidth);
     lay.errors = errors;
-    lay.ok = lay.scrollW <= lay.innerW && lay.panelScrollW <= lay.innerW && lay.inView && !lay.overlaps.length && lay.timePx === '28px' && !errors.length && !!lay.picked;
+    lay.ok = lay.scrollW <= lay.innerW && lay.panelScrollW <= lay.innerW && lay.inView && !lay.overlaps.length && lay.timePx === '28px' && !errors.length && !!lay.picked
+      && lay.allLines.on === true && lay.allLines.names.includes(lang === 'en' ? 'Taurus' : 'おうし座') && !lay.allLines.names.includes(lang === 'en' ? 'Orion' : 'オリオン座');   // タップした星座（オリオン座）は名前を重ねない
     R.layout[lang] = lay;
     await ctx.close();
   }
@@ -66,18 +72,25 @@ const GEM = '#35.69,139.69,1797256800';   // 2026-12-14 23:00 東京（ふたご
   R.motion = {};
   for (const reduce of [true, false]) {
     const ctx = await ctxOf({ reducedMotion: reduce ? 'reduce' : 'no-preference' }), p = await ctx.newPage();
-    await p.goto(`${base}?probe=off`); await ready(p); await p.waitForTimeout(800);
+    await p.goto(`${base}?probe=off`); await ready(p);
+    const introAtStart = await p.evaluate(() => window.__night.intro());   // true = 演出は終わっている（または無い）
+    await p.waitForTimeout(reduce ? 800 : 4300);
     const t0 = await p.evaluate(() => [window.__night.sim, performance.now(), window.__night.playing]);
     const a = await p.screenshot({ clip: { x: 0, y: 120, width: 390, height: 400 } });
     await p.waitForTimeout(1500);
     const t1 = await p.evaluate(() => [window.__night.sim, performance.now()]);
     const b = await p.screenshot({ clip: { x: 0, y: 120, width: 390, height: 400 } });
     const rate = (t1[0] - t0[0]) / (t1[1] - t0[1]);
-    R.motion[reduce ? 'reduce' : 'normal'] = { playingAtStart: t0[2], speed: Math.round(rate * 10) / 10, sameFrame: Buffer.compare(a, b) === 0 };
+    // 流れ星: 次の 1 本を今すぐにしても、reduced motion なら出ない
+    await p.evaluate(() => window.__night.forceMeteor(3000)); await p.waitForTimeout(800);
+    const meteor = await p.evaluate(() => window.__night.meteor());
+    R.motion[reduce ? 'reduce' : 'normal'] = { playingAtStart: t0[2], speed: Math.round(rate * 10) / 10, sameFrame: Buffer.compare(a, b) === 0, introRunningAtStart: !introAtStart, meteor };
     await ctx.close();
   }
   R.motion.ok = R.motion.reduce.playingAtStart === false && R.motion.reduce.speed === 0 && R.motion.reduce.sameFrame
-    && R.motion.normal.playingAtStart === true && Math.abs(R.motion.normal.speed - 60) < 6 && !R.motion.normal.sameFrame;
+    && R.motion.reduce.introRunningAtStart === false && R.motion.reduce.meteor === false
+    && R.motion.normal.playingAtStart === true && Math.abs(R.motion.normal.speed - 60) < 6 && !R.motion.normal.sameFrame
+    && R.motion.normal.introRunningAtStart === true && R.motion.normal.meteor === true;
 
   /* 3 外向きの要求・読み込んだ量 */
   {
@@ -164,10 +177,21 @@ const GEM = '#35.69,139.69,1797256800';   // 2026-12-14 23:00 東京（ふたご
     R.geoDenied.ok = R.geoDenied.place === 'pref-47' && R.geoDenied.label === '沖縄県' && R.geoDenied.count === 47;
     await ctx.close();
   }
+  /* 7b 位置情報を許可（渋谷のあたり）→「東京都付近」と緯度経度。英語は Near Tokyo */
+  R.geoGranted = {};
+  for (const lang of ['ja', 'en']) {
+    const ctx = await ctxOf({ permissions: ['geolocation'], geolocation: { latitude: 35.659, longitude: 139.700 } }), p = await ctx.newPage();
+    await p.goto(`${base}${lang === 'en' ? 'en/' : ''}?probe=off`); await ready(p);
+    await p.click('#place'); await p.click('#geo'); await p.waitForTimeout(1200);
+    R.geoGranted[lang] = { label: await p.textContent('#place'), sub: await p.textContent('#placeSub') };
+    if (lang === 'ja') { await p.waitForTimeout(3500); await shot(p, 'iphone-ja-here.png'); }
+    await ctx.close();
+  }
+  R.geoGranted.ok = R.geoGranted.ja.label === '東京都付近' && R.geoGranted.ja.sub === '北緯35.7° 東経139.7°' && R.geoGranted.en.label === 'Near Tokyo' && R.geoGranted.en.sub === '35.7°N 139.7°E';
 
   await browser.close(); srv.close();
   fs.writeFileSync(path.join(OUT, 'check-k132.json'), JSON.stringify(R, null, 2));
-  const summary = ['layout.ja', 'layout.en', 'motion', 'requests', 'degrade', 'nogl', 'share', 'geoDenied'].map((k) => [k, k.split('.').reduce((o, x) => o[x], R).ok]);
+  const summary = ['layout.ja', 'layout.en', 'motion', 'requests', 'degrade', 'nogl', 'share', 'geoDenied', 'geoGranted'].map((k) => [k, k.split('.').reduce((o, x) => o[x], R).ok]);
   for (const [k, ok] of summary) console.log(`${ok ? 'OK' : 'NG'}  ${k}`);
   console.log(`結果: ${path.join(OUT, 'check-k132.json')}`);
   if (summary.some(([, ok]) => !ok)) process.exit(1);

@@ -28,16 +28,20 @@ test('1 薄明の重み: 昼と薄明は 1、深夜は 0、夜の色に移るの
   assert.ok(minutes >= 19 && minutes <= 21, `${minutes} 分`);
 });
 
-test('2 にじみの半径: 1 等 6・2 等 4・3 等 3・4 等 2・5 等以下 1.5（px、DPR 1）', () => {
-  assert.deepStrictEqual([-1.46, 0, 1, 2, 3, 4, 5, 6].map(L.haloRadius), [6, 6, 6, 4, 3, 2, 1.5, 1.5]);
+test('2 にじみの半径（オーナー決定 2026-10-03 で 7.15.1 より大きく）: 0 等 10・1 等 7.5・2 等 5・3 等 3.5・4 等 2.5・5 等 1.8・6 等 1.4', () => {
+  assert.deepStrictEqual([-1.46, 0, 1, 2, 3, 4, 5, 6, 6.5].map(L.haloRadius), [10, 10, 7.5, 5, 3.5, 2.5, 1.8, 1.4, 1.4]);
+  // 明るい星ほど大きい（逆転しない）
+  for (let m = -1.5; m < 6.5; m += 0.1) assert.ok(L.haloRadius(m) >= L.haloRadius(m + 0.1));
 });
 
-test('2 星の色: B−V から、彩度 20% 以内（全星表）', () => {
+test('2 星の色: B−V から、彩度 35% 以内（オーナー決定 2026-10-03。7.15.1 は 20%）', () => {
   const { CATALOG } = require('../engine/catalog.js');
+  const { CATALOG_EXTRA } = require('../render/catalog-extra.js');
   let max = 0;
-  for (let i = 3; i < CATALOG.length; i += 4) max = Math.max(max, L.saturation(L.starColor(CATALOG[i] / 100)));
+  for (const C of [CATALOG, CATALOG_EXTRA]) for (let i = 3; i < C.length; i += 4) max = Math.max(max, L.saturation(L.starColor(C[i] / 100)));
+  assert.strictEqual(L.MAX_SAT, 0.35);
   assert.ok(max <= L.MAX_SAT + 1e-9, String(max));
-  assert.ok(max > 0.15, '色がほぼ無い（薄すぎる）');
+  assert.ok(max > 0.3, '色が薄すぎる');
   // 青い星は青寄り、赤い星は赤寄り
   const b = L.starColor(-0.3), r = L.starColor(1.8);
   assert.ok(b[2] > b[0] && r[0] > r[2]);
@@ -53,7 +57,29 @@ test('2 またたき: 3 等より明るい星だけ、±10%、0.5〜1 Hz', () =>
 test('3 日周運動: 1 秒 ＝ 1 分（60 倍）。4 ピンチは 1〜3 倍。線は #8fb0ff・30%・1 秒', () => {
   assert.strictEqual(L.SPEED, 60);
   assert.deepStrictEqual(L.ZOOM, { min: 1, max: 3 });
-  assert.deepStrictEqual(L.LINE, { color: '#8fb0ff', alpha: 0.3, fadeMs: 1000 });
+  assert.deepStrictEqual(L.LINE, { color: '#a8c4ff', alpha: 0.7, fadeMs: 1000, widthCss: 1.5 });
+});
+
+test('場所の表示: 位置情報は最寄りの都道府県庁＋付近と緯度経度、遠ければ緯度経度だけ、選んだ所はその名前', () => {
+  assert.deepStrictEqual(L.placeText({ id: 'here', lat: 35.66, lon: 139.7 }, P.PREFS, false), { main: '東京都付近', sub: '北緯35.7° 東経139.7°' });
+  assert.deepStrictEqual(L.placeText({ id: 'here', lat: 35.66, lon: 139.7 }, P.PREFS, true), { main: 'Near Tokyo', sub: '35.7°N 139.7°E' });
+  assert.deepStrictEqual(L.placeText({ id: 'here', lat: 43.1, lon: 141.3 }, P.PREFS, false).main, '北海道付近');
+  assert.deepStrictEqual(L.placeText({ id: 'here', lat: 51.5, lon: -0.1 }, P.PREFS, true), { main: '51.5°N 0.1°W', sub: '' });
+  assert.deepStrictEqual(L.placeText({ id: 'shared', lat: -33.87, lon: 151.21 }, P.PREFS, false), { main: '南緯33.9° 東経151.2°', sub: '' });
+  assert.deepStrictEqual(L.placeText(P.PREFS[46], P.PREFS, false), { main: '沖縄県', sub: '' });
+  assert.ok(Math.abs(L.kmBetween({ lat: 35.69, lon: 139.69 }, { lat: 34.69, lon: 135.52 }) - 397) < 5, '東京〜大阪 約 400 km');
+});
+
+test('わぁきれい（オーナー決定 2026-10-03）: 6.5 等まで・演出 3.5 秒・流れ星は平均 30 秒（極大の夜 10 秒）・山並み 0〜3°・星座線を全部', () => {
+  assert.strictEqual(L.STAR_LIMIT, 6.5);
+  assert.ok(L.INTRO.ms >= 3000 && L.INTRO.ms <= 4000);
+  // 指数分布の平均（決まった乱数列で）
+  const mean = (peak) => { let s = 0; for (let i = 1; i < 2000; i++) s += L.meteorWait(i / 2000, peak); return s / 1999; };
+  assert.ok(Math.abs(mean(false) - 30) < 2 && Math.abs(mean(true) - 10) < 1, `${mean(false)} ${mean(true)}`);
+  let lo = Infinity, hi = -Infinity;
+  for (let a = 0; a < 2 * Math.PI; a += 0.01) { const h = L.hillDeg(a); lo = Math.min(lo, h); hi = Math.max(hi, h); }
+  assert.ok(lo === 0 && hi > 1.5 && hi < 3, `${lo} ${hi}`);
+  assert.ok(L.LINES_ALL_ALPHA < L.LINE.alpha);
 });
 
 test('5 英語の UI 文字列は 20 語以内', () => {

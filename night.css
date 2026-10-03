@@ -52,3 +52,9 @@ a { color: #9fc3ff; }
 [hidden] { display: none !important; }
 @media (min-width: 900px) { .bar { flex-direction: row; align-items: center; } #slider { flex: 1; } .panel { left: auto; right: 16px; bottom: 90px; width: 420px; border-radius: 16px; border: 1px solid var(--line); } }
 .app .fps { bottom: 120px; left: 16px; color: var(--dim); }
+
+/* オーナー決定 2026-10-03（「わぁきれい」）で足したもの */
+.placesub { font-size: 12px; color: var(--dim); padding-left: 12px; font-variant-numeric: tabular-nums; text-shadow: 0 1px 4px #000c; }
+.conname { position: fixed; left: 0; top: 0; font-size: 11px;
+  color: rgba(170, 195, 255, .62); letter-spacing: .06em; pointer-events: none; white-space: nowrap; }
+#lines[aria-pressed="true"] { border-color: #8fb0ff; color: #cfdcff; background: rgba(60, 90, 170, .35); }
