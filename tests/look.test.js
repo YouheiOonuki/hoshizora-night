@@ -57,7 +57,7 @@ test('2 またたき: 3 等より明るい星だけ、±10%、0.5〜1 Hz', () =>
 test('3 日周運動: 1 秒 ＝ 1 分（60 倍）。4 ピンチは 1〜3 倍。線は #8fb0ff・30%・1 秒', () => {
   assert.strictEqual(L.SPEED, 60);
   assert.deepStrictEqual(L.ZOOM, { min: 1, max: 3 });
-  assert.deepStrictEqual(L.LINE, { color: '#8fb0ff', alpha: 0.3, fadeMs: 1000 });
+  assert.deepStrictEqual(L.LINE, { color: '#a8c4ff', alpha: 0.7, fadeMs: 1000, widthCss: 1.5 });
 });
 
 test('場所の表示: 位置情報は最寄りの都道府県庁＋付近と緯度経度、遠ければ緯度経度だけ、選んだ所はその名前', () => {

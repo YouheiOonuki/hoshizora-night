@@ -63,7 +63,7 @@
 
   /* ---------- 4 操作 ---------- */
   const ZOOM = { min: 1, max: 3 };
-  const LINE = { color: '#8fb0ff', alpha: 0.3, fadeMs: 1000 };
+  const LINE = { color: '#a8c4ff', alpha: 0.7, fadeMs: 1000, widthCss: 1.5 };   // オーナー 2026-10-03「星座の線が見えづらすぎる」で 0.3 → 0.7、太さ 1.5 CSS px
 
   /* ---------- 9 動かない端末 ---------- */
   const FPS = { probeMs: 3000, min: 24, reducedMag: 4 };
@@ -79,7 +79,7 @@
     const h = 0.6 + 0.9 * Math.sin(2 * az + 0.5) + 0.6 * Math.sin(5 * az + 2.1) + 0.35 * Math.sin(11 * az + 4.0) + 0.2 * Math.sin(23 * az + 1.3);
     return Math.max(0, h) * 0.9;
   }
-  const LINES_ALL_ALPHA = 0.22;                        // 星座線を全部出すとき（タップした星座は LINE.alpha）
+  const LINES_ALL_ALPHA = 0.5;                        // 星座線を全部出すとき（タップした星座は LINE.alpha）
 
   /* ---------- 場所の表示（位置情報なら最寄りの都道府県庁＋「付近」と緯度経度） ---------- */
   function coordText(lat, lon, en) {

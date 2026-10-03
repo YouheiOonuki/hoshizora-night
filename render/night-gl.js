@@ -100,9 +100,14 @@ void main(){
   gl_FragColor = vec4(c, a * vAlpha);
 }`;
 
-  const LN_VS = `attribute vec3 aPos; ${PROJ}
-void main(){ vec3 s = project(uHz * aPos); gl_Position = s.z == 0.0 ? vec4(2.0, 2.0, 2.0, 1.0) : vec4(s.xy, 0.0, 1.0); }`;
-  const LN_FS = `precision mediump float; uniform vec4 uColor; void main(){ gl_FragColor = uColor; }`;
+  // WebGL の線は 1 物理ピクセル固定（lineWidth は効かない）。uOff だけずらして数回描き、DPR に合った太さにする
+  const LN_VS = `attribute vec3 aPos; uniform vec2 uOff; ${PROJ}
+varying float vVis;
+// 見えない端は画面の外へ飛ばすと線が画面を横切るので、位置はそのまま近くに置き、vVis で線ごと捨てる
+void main(){ vec3 s = project(uHz * aPos); vVis = s.z; vec3 p = uView * (uHz * aPos);
+  vec2 xy = s.z == 0.0 ? p.xy / max(1.0 + p.z, 0.1) * uScale : s.xy;
+  gl_Position = vec4(xy + uOff, 0.0, 1.0); }`;
+  const LN_FS = `precision mediump float; uniform vec4 uColor; varying float vVis; void main(){ if (vVis < 0.999) discard; gl_FragColor = uColor; }`;
 
   const MOON_VS = `attribute vec2 aXY; uniform vec2 uClip; uniform float uSize; void main(){ gl_Position = vec4(uClip, 0.0, 1.0); gl_PointSize = uSize; }`;
   const MOON_FS = `
@@ -177,7 +182,7 @@ void main(){
     if (!gl) throw new Error('webgl');
     const bg = program(gl, BG_VS, BG_FS, ['uViewT', 'uStarT', 'uScale', 'uZen', 'uHor', 'uGround', 'uMW', 'uMWd', 'uMWn', 'uMWk', 'uNoise', 'uHills']);
     const pt = program(gl, PT_VS, PT_FS, ['uHz', 'uView', 'uScale', 'uHills', 'uDpr', 'uTime', 'uTwinkle', 'uLimit', 'uDim', 'uZoom']);
-    const ln = program(gl, LN_VS, LN_FS, ['uHz', 'uView', 'uScale', 'uHills', 'uColor']);
+    const ln = program(gl, LN_VS, LN_FS, ['uHz', 'uView', 'uScale', 'uHills', 'uColor', 'uOff']);
     const mo = program(gl, MOON_VS, MOON_FS, ['uClip', 'uSize', 'uK', 'uAngle', 'uDim']);
     const me = program(gl, MET_VS, MET_FS, ['uA']);
     const mw = MW ? milkyUniforms(MW) : null;
@@ -265,7 +270,15 @@ void main(){
         gl.uniform2fv(ln.U.uScale, scale); gl.uniform1f(ln.U.uHills, hills);
         gl.uniform4f(ln.U.uColor, c[0], c[1], c[2], alpha);
         gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-        gl.drawArrays(gl.LINES, 0, L2.n);
+        // 太さ L.LINE.widthCss（CSS px）× DPR の物理ピクセルぶん、縦横にずらして重ねる
+        const px = Math.max(1, Math.round(L.LINE.widthCss * (st.dpr || 1)));
+        for (let i = 0; i < px; i++) {
+          const d = i - (px - 1) / 2;
+          for (const [ox, oy] of (px === 1 ? [[0, 0]] : [[d, 0], [0, d]])) {
+            gl.uniform2f(ln.U.uOff, 2 * ox / w, 2 * oy / h);
+            gl.drawArrays(gl.LINES, 0, L2.n);
+          }
+        }
         gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
       };
       drawLines(lines.all, st.allLines || 0);
