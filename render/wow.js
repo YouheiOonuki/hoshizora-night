@@ -9,7 +9,7 @@
      5 星の軌跡（時間を早回しし、星を別の絵に描きためて少しずつ暗くする。動きを減らす設定では 2 時間分を 1 枚に）
      6 双眼鏡・望遠鏡（円い視野で拡大し、限界等級を口径の分だけ上げる。暗い星はヒッパルコス星表 render/hip.js を押したときに読む）
      7 イベントの再生（次の皆既月食・流星群の極大。日付は engine/official-events.js（国立天文台の発表の写し）、欠けの時刻はこのサイトの計算）
-   （8 は順に足す） */
+     8 日の出・日の入りの空の色（大気散乱の近似。render/night-gl.js の GLSL と同じ式） */
 (function (root) {
   const W = (typeof module !== 'undefined') ? require('./wmm.js') : root.NightWMM;
   // eslint-disable-next-line no-undef
@@ -283,6 +283,33 @@
   const norm3 = (v) => { const m = Math.hypot(...v); return v.map((x) => x / m); };
   const EVENT = { eclipseSpeed: 600, meteorSpeed: 600, meteorBeforeH: 2, meteorAfterH: 1, eclipseLeadMin: 20, eclipseZoom: 10 };
 
+  /* ---------- 8 日の出・日の入りの空の色（大気散乱の近似） ----------
+     1 回散乱の近似（平らな大気・密度は高さで指数関数的に減る。見る向きに沿って積分した式）:
+       空の明るさ L(v) = E · S · X(v) · (e^(−τ·X(v)) − e^(−τ·X(太陽))) / (τ · (X(太陽) − X(v)))
+       S = τR·PR(θ) + τM·0.9·PM(θ)（散乱の光学的厚さ × 位相関数）、τ = τR + τM（消散）、θ は見る向きと太陽の角度、X は空気の量
+       太陽の光が空気を通る間に青が先に減る → 低い太陽ほど赤く、太陽の側の地平線ほど赤い
+     係数は Bruneton & Neyret (2008)「Precomputed Atmospheric Scattering」（https://inria.hal.science/inria-00288758/document、2026-10-03 に確認）:
+       Rayleigh βR = (5.8, 13.5, 33.1)×10⁻⁶ m⁻¹（λ = 680, 550, 440 nm）・HR = 8 km、Mie βM = 2×10⁻⁵ m⁻¹・βM/βMe = 0.9・g = 0.76・HM = 1.2 km、
+       位相関数 PR = 3/(16π)(1+μ²)、PM（Cornette-Shanks）= 3/(8π)·(1−g²)(1+μ²)/((2+g²)(1+g²−2gμ)^{3/2})
+     X は星の減光と同じ空気の量の式（look.js の airmass）。太陽が地平線の下では光が届く量を薄明として弱める（このサイトの近似） */
+  const SCAT = { betaR: [5.8e-6, 13.5e-6, 33.1e-6], HR: 8000, betaM: 2e-5, mieAlbedo: 0.9, HM: 1200, g: 0.76, E: 42, exposure: 1.0 };
+  const tauR = SCAT.betaR.map((b) => b * SCAT.HR), tauM = SCAT.betaM / SCAT.mieAlbedo * SCAT.HM;
+  function airmass(sinAlt) { const s = Math.max(0, sinAlt); return Math.min(40, 1 / (s + 0.025 * Math.exp(-11 * s))); }
+  /** 見る向き v・太陽の向き s（地平座標の単位ベクトル）→ 空の色（0〜1、トーンを丸めた後） */
+  function scatter(v, s) {
+    const mu = v[0] * s[0] + v[1] * s[1] + v[2] * s[2], g = SCAT.g;
+    const PR = 3 / (16 * Math.PI) * (1 + mu * mu);
+    const PM = 3 / (8 * Math.PI) * (1 - g * g) * (1 + mu * mu) / ((2 + g * g) * Math.pow(1 + g * g - 2 * g * mu, 1.5));
+    const Xv = airmass(v[2]), Xs = airmass(s[2]);
+    const sunAltDeg = Math.asin(Math.max(-1, Math.min(1, s[2]))) / D, below = Math.max(0, Math.min(1, (sunAltDeg + 12) / 12));   // −12° で 0
+    return [0, 1, 2].map((i) => {
+      const tau = tauR[i] + tauM, S = tauR[i] * PR + tauM * SCAT.mieAlbedo * PM, dX = Xs - Xv;
+      const path = Math.abs(dX) < 1e-4 ? Math.exp(-tau * Xv) : (Math.exp(-tau * Xv) - Math.exp(-tau * Xs)) / (tau * dX);
+      const L = SCAT.E * S * Xv * path * below * below;
+      return 1 - Math.exp(-L * SCAT.exposure);
+    });
+  }
+
   /* ---------- 文字（新しい UI の文字列。英語は k132-wow2-en-review.md でオーナーの承認待ち） ---------- */
   const TEXT = {
     ja: {
@@ -379,6 +406,6 @@
     },
   };
 
-  const api = { magnetic, decimalYear, declination, deviceView, compassOffset, GYRO, needCalibration, follow, LIGHT, skyMag, nelm, lightPollution, photoCorners, ZOOM_DEEP, zoomFor, altOf, sunAlt, viewTime, TRAIL, trailFade, trailTimes, SCOPE, scopeLimit, scopeZoom, decodeHip, ECL, eclipseAt, eclipseContacts, eclipseLight, RADIANTS, upcoming, ratePerHour, meteorGap, radiantMeteor, EVENT, TEXT };
+  const api = { magnetic, decimalYear, declination, deviceView, compassOffset, GYRO, needCalibration, follow, LIGHT, skyMag, nelm, lightPollution, photoCorners, ZOOM_DEEP, zoomFor, altOf, sunAlt, viewTime, TRAIL, trailFade, trailTimes, SCOPE, scopeLimit, scopeZoom, decodeHip, ECL, eclipseAt, eclipseContacts, eclipseLight, RADIANTS, upcoming, ratePerHour, meteorGap, radiantMeteor, EVENT, SCAT, scatter, TEXT };
   if (typeof module !== 'undefined') module.exports = api; else root.NightWow = api;
 })(typeof window !== 'undefined' ? window : globalThis);

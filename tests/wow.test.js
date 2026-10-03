@@ -294,6 +294,29 @@ test('7 これからのイベント: 次の皆既月食（2029-01-01、日本で
   assert.ok(app.includes("ev && ev.kind === 'meteor' && playing && !reduce.matches"));
 });
 
+/* ---------- 8 日の出・日の入りの空の色 ---------- */
+test('8 大気散乱の近似: 係数は Bruneton & Neyret (2008)。昼の天頂は青、日の入りは太陽の側の地平線ほど赤く、反対側は暗い。太陽 −12° で 0', () => {
+  assert.deepStrictEqual(W.SCAT.betaR, [5.8e-6, 13.5e-6, 33.1e-6]);
+  assert.strictEqual(W.SCAT.HR, 8000); assert.strictEqual(W.SCAT.betaM, 2e-5); assert.strictEqual(W.SCAT.mieAlbedo, 0.9); assert.strictEqual(W.SCAT.g, 0.76); assert.strictEqual(W.SCAT.HM, 1200);
+  const dir = (az, alt) => [Math.cos(alt * D) * Math.sin(az * D), Math.cos(alt * D) * Math.cos(az * D), Math.sin(alt * D)];
+  const noonZen = W.scatter(dir(0, 90), dir(180, 60));
+  assert.ok(noonZen[2] > noonZen[1] && noonZen[1] > noonZen[0], `昼の天頂 ${noonZen}`);
+  const sun = dir(270, 1), toward = W.scatter(dir(270, 3), sun), away = W.scatter(dir(90, 3), sun);
+  assert.ok(toward[0] > toward[2] * 2, `夕焼け ${toward}`);
+  assert.ok(toward[0] / toward[2] > noonZen[0] / noonZen[2] * 3);
+  assert.ok(away[0] + away[1] + away[2] < toward[0] + toward[1] + toward[2]);
+  // 太陽が低いほど赤い（太陽の側の地平線）
+  const rb = (a) => { const c = W.scatter(dir(270, 3), dir(270, a)); return c[0] / Math.max(1e-6, c[2]); };
+  assert.ok(rb(1) > rb(5) && rb(5) > rb(20) && rb(20) > rb(60));
+  // 太陽が −12° より下では 0（夜の色はそのまま）
+  assert.deepStrictEqual(W.scatter(dir(270, 3), dir(270, -12.5)), [0, 0, 0]);
+  // GLSL も同じ式で、係数は render/wow.js から渡す（1 か所）
+  const gl = read('render/night-gl.js');
+  assert.ok(gl.includes('vec3 scatterSky(vec3 v, vec3 s)') && gl.includes('(exp(-tau * Xv) - exp(-tau * Xs)) / (tau * dX)') && gl.includes('SC.betaR.map((b) => b * SC.HR)'));
+  assert.ok(read('app/night.js').includes('scatter: true'));
+  assert.ok(read('render/wow.js').includes('inria-00288758'));
+});
+
 /* ---------- 共通 ---------- */
 test('文字: 日英で項目が揃い、英語はすべて k132-wow2-en-review.md の承認待ちの文（新しく書いた英語はここだけ）', () => {
   assert.deepStrictEqual(Object.keys(W.TEXT.en).sort(), Object.keys(W.TEXT.ja).sort());

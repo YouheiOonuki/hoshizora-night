@@ -38,8 +38,23 @@ precision highp float;
 uniform mat3 uViewT; uniform mat3 uStarT; uniform mat3 uGal; uniform vec2 uScale; uniform vec3 uZen; uniform vec3 uHor; uniform vec3 uGround;
 uniform vec4 uMW[${MWN}]; uniform float uMWd[${MWN}]; uniform int uMWn; uniform float uMWk; uniform float uNoise; uniform float uHills;
 uniform sampler2D uTex; uniform float uTexK;
-uniform vec3 uSun; uniform float uDay; uniform float uGlow; uniform vec3 uMoon; uniform float uMoonK; uniform float uCity;
+uniform vec3 uSun; uniform float uDay; uniform float uGlow; uniform vec3 uMoon; uniform float uMoonK; uniform float uCity; uniform float uScatter;
+uniform vec3 uTauR; uniform float uTauM; uniform float uMieA; uniform float uMieG; uniform float uScatE;
 varying vec2 vXY;
+// 日の出・日の入りの空の色（企画書 75 の 8）: 1 回散乱の近似。render/wow.js の scatter と同じ式（係数は Bruneton & Neyret 2008）
+float airX(float s){ s = max(s, 0.0); return min(40.0, 1.0 / (s + 0.025 * exp(-11.0 * s))); }
+vec3 scatterSky(vec3 v, vec3 s){
+  float mu = dot(v, s), g = uMieG;
+  float PR = 3.0 / (16.0 * 3.14159265) * (1.0 + mu * mu);
+  float PM = 3.0 / (8.0 * 3.14159265) * (1.0 - g * g) * (1.0 + mu * mu) / ((2.0 + g * g) * pow(1.0 + g * g - 2.0 * g * mu, 1.5));
+  float Xv = airX(v.z), Xs = airX(s.z), sa = degrees(asin(clamp(s.z, -1.0, 1.0)));
+  float below = clamp((sa + 12.0) / 12.0, 0.0, 1.0);
+  vec3 tau = uTauR + vec3(uTauM), S = uTauR * PR + vec3(uTauM * uMieA * PM);
+  float dX = Xs - Xv;
+  vec3 path = abs(dX) < 1e-4 ? exp(-tau * Xv) : (exp(-tau * Xv) - exp(-tau * Xs)) / (tau * dX);
+  vec3 L = uScatE * S * Xv * path * below * below;
+  return vec3(1.0) - exp(-L);
+}
 ${HILLS}
 float hash(vec3 p){ p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
 float noise(vec3 x){
@@ -73,11 +88,16 @@ void main(){
   }
   float t = pow(clamp(h.z, 0.0, 1.0), 0.45);         // 高度が上がるほど天頂の色へ
   vec3 col = mix(uHor, uZen, t);
+  if (uScatter > 0.5) {
+    // 企画書 75 の 8: 昼・薄明・朝焼け・夕焼けを大気散乱の近似で（夜の色の上に足す）
+    col = col * (1.0 - 0.9 * uDay) + scatterSky(normalize(vec3(h.xy, max(h.z, 0.0))), sunH);
+  } else {
   // 昼の空
   vec3 day = mix(vec3(0.66, 0.80, 0.93), vec3(0.20, 0.42, 0.80), pow(clamp(h.z, 0.0, 1.0), 0.5));
   col = mix(col, day, uDay);
-  // 薄明・朝焼け・夕焼け: 太陽の方位の地平線ほど赤く、上は紫へ
-  float g = clamp(1.0 - abs(sunAlt + 4.0) / 14.0, 0.0, 1.0) * uGlow;
+  }
+  // 薄明・朝焼け・夕焼け: 太陽の方位の地平線ほど赤く、上は紫へ（散乱の近似を使わないとき。ポスターなど）
+  float g = clamp(1.0 - abs(sunAlt + 4.0) / 14.0, 0.0, 1.0) * uGlow * (1.0 - uScatter);
   if (g > 0.0) {
     vec2 hz = normalize(h.xy + 1e-5), sz = normalize(sunH.xy + 1e-5);
     float toward = pow(0.5 + 0.5 * dot(hz, sz), 3.0);
@@ -318,7 +338,8 @@ void main(){ vec2 e = min(vUV, 1.0 - vUV); float edge = smoothstep(0.0, 0.06, mi
     const gl = canvas.getContext('webgl', { antialias: true, alpha: false, preserveDrawingBuffer: !!opts.preserve });
     if (!gl) throw new Error('webgl');
     const bg = program(gl, BG_VS, BG_FS, ['uViewT', 'uStarT', 'uGal', 'uScale', 'uZen', 'uHor', 'uGround', 'uMW', 'uMWd', 'uMWn', 'uMWk', 'uNoise', 'uHills',
-      'uTex', 'uTexK', 'uSun', 'uDay', 'uGlow', 'uMoon', 'uMoonK', 'uCity']);
+      'uTex', 'uTexK', 'uSun', 'uDay', 'uGlow', 'uMoon', 'uMoonK', 'uCity', 'uScatter', 'uTauR', 'uTauM', 'uMieA', 'uMieG', 'uScatE']);
+    const SC = root.NightWow ? root.NightWow.SCAT : null;   // 散乱の係数（render/wow.js の 1 か所）
     const pt = program(gl, PT_VS, PT_FS, ['uHz', 'uView', 'uScale', 'uHills', 'uDpr', 'uTime', 'uTwinkle', 'uLimit', 'uDim', 'uZoom', 'uExt', 'uMaxPt', 'uPremul']);
     const fd = program(gl, TR_VS, FADE_FS, ['uFade']);
     const cp = program(gl, TR_VS, COMP_FS, ['uTex', 'uAlpha']);
@@ -573,6 +594,8 @@ void main(){ vec2 e = min(vUV, 1.0 - vUV); float edge = smoothstep(0.0, 0.06, mi
       gl.uniform1f(bg.U.uTexK, st.milkyTex === false ? 0 : texK('milky', now));
       gl.uniform3fv(bg.U.uSun, sky.sun || [0, 0, -1]); gl.uniform1f(bg.U.uDay, sky.day || 0); gl.uniform1f(bg.U.uGlow, sky.glow || 0);
       gl.uniform3fv(bg.U.uMoon, sky.moon || [0, 0, -1]); gl.uniform1f(bg.U.uMoonK, sky.moonK || 0); gl.uniform1f(bg.U.uCity, sky.city || 0);
+      gl.uniform1f(bg.U.uScatter, sky.scatter && SC ? 1 : 0);
+      if (SC) { gl.uniform3fv(bg.U.uTauR, SC.betaR.map((b) => b * SC.HR)); gl.uniform1f(bg.U.uTauM, SC.betaM / SC.mieAlbedo * SC.HM); gl.uniform1f(bg.U.uMieA, SC.mieAlbedo); gl.uniform1f(bg.U.uMieG, SC.g); gl.uniform1f(bg.U.uScatE, SC.E * SC.exposure); }
       gl.drawArrays(gl.TRIANGLES, 0, 3);
       // 星雲・銀河（星の後ろ）
       gl.enable(gl.BLEND);

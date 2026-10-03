@@ -248,6 +248,25 @@ const WINTER = '#35.69,139.69,1800021600';  // 2027-01-15 23:00 JST 東京（冬
     R.features[7] = F;
   }
 
+  /* 8 日の出・日の入りの空の色: 東京 2026-12-15 の日の入り（16:31 ごろ）の前後を西南西に向けて。日の出（6:45 ごろ）は東南東。昼は青 */
+  if (want(8)) {
+    const F = { shots: [], frames: {} };
+    const at = (iso) => Math.floor(Date.parse(iso) / 1000);
+    const scenes = [['noon', '2026-12-15T12:00:00+09:00', '180,40'], ['sunset-plus3', '2026-12-15T16:05:00+09:00', '240,12'], ['sunset', '2026-12-15T16:30:00+09:00', '240,12'],
+      ['dusk-minus4', '2026-12-15T16:52:00+09:00', '240,12'], ['dusk-minus9', '2026-12-15T17:15:00+09:00', '240,15'], ['sunrise', '2026-12-16T06:45:00+09:00', '118,12']];
+    for (const [dev, tag] of [[PHONE, 'phone'], [PC, 'pc']]) {
+      const { ctx, p, errors } = await open(dev, '?probe=off', { reducedMotion: 'reduce' });
+      for (const [name, iso, view] of scenes) {
+        await p.goto(`${base}?probe=off&view=${view}&s=${name}#35.69,139.69,${at(iso)}`); await ready(p); await p.waitForTimeout(500);
+        const f = await shot(p, `8-sky-${tag}-${name}.png`); F.shots.push(f);
+        F.frames[`${tag}-${name}`] = fs.statSync(f).size;
+      }
+      F[tag + 'Errors'] = errors; await ctx.close();
+    }
+    F.ok = !F.phoneErrors.length && !F.pcErrors.length && new Set(Object.values(F.frames)).size === Object.keys(F.frames).length;
+    R.features[8] = F;
+  }
+
   await browser.close(); srv.close();
   fs.writeFileSync(path.join(OUT, 'result.json'), JSON.stringify(R, null, 2));
   const ng = Object.entries(R.features).filter(([, f]) => !f.ok).map(([k]) => k);

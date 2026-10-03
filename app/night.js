@@ -418,7 +418,7 @@
     r.draw({ faint: !!scope && faintOn(), trail: trailSt, photos, pointZoom: 3, art: showArt ? { alpha: 0.34 * starF * ease, color: [0.62, 0.72, 1.0] } : null, starM, H, az: st.az, alt: st.alt, zoom: st.zoom, fovDeg: st.fovDeg, dpr: dprCap(), time: twinkleOn ? now / 1000 : 0, now, cssW: cw, cssH: ch,
       twinkle: twinkleOn ? 1 : 0, limit, twilight: L.twilightWeight(sim, place.lat, place.lon) * (1 - dayF), dusk: 1 - ease,
       milky: st.stage === 'full' ? mwF * ease : 0, milkyTex: st.stage === 'full', noise: true, hills: true,
-      sky: { sun: sunHz, day: dayF, glow: 1, moon: mH, moonK: moonF, ext: 1, dim: 1 - 0.3 * (1 - starF), city: lp.glow },
+      sky: { sun: sunHz, day: dayF, glow: 1, moon: mH, moonK: moonF, ext: 1, dim: 1 - 0.3 * (1 - starF), city: lp.glow, scatter: true },
       glows, quads, sprites, moon: null, lineAlpha: 0, allLines: 0, meteor: met, meteors: evMets });
 
     /* 名前 */
