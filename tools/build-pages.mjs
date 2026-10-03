@@ -101,6 +101,7 @@ export function page(lang, month) {
 <div class="corner"><button id="helpBtn" type="button" class="round" aria-label="${T.helpLabel}">?</button></div>
 <ul id="tonight" class="tonight"></ul>
 <div id="quizBar" class="quizbar" role="status" hidden><span class="qt"><span class="qn" id="qNum"></span><span id="qText"></span></span><button id="qHint" type="button">${lbl(T.hint)}</button></div>
+<div id="eventBar" class="quizbar evbar" role="status" hidden><span class="qt" id="evText"></span><button id="evStop" type="button">${lbl(WT.evStop)}</button></div>
 <div class="bottom">
   <div class="row">
     <button id="play" type="button" class="icon" aria-label="${T.pause}">${PLAY_SVG}</button>
@@ -114,6 +115,7 @@ export function page(lang, month) {
     <button id="dsoBtn" type="button" class="wow" aria-pressed="false" aria-controls="dsoPanel">${lbl(WT.bDso)}</button>
     <button id="trailBtn" type="button" class="wow" aria-pressed="false">${lbl(WT.bTrail)}</button>
     <button id="scopeBtn" type="button" class="wow" aria-pressed="false">${lbl(WT.bScope)}</button>
+    <button id="eventBtn" type="button" class="wow" aria-pressed="false" aria-controls="eventPanel">${lbl(WT.bEvent)}</button>
     <button id="lines" type="button" aria-pressed="true">${lbl(T.bLines)}</button>
     <button id="names" type="button" aria-pressed="true">${lbl(T.bNames)}</button>
     <button id="timeBtn" type="button" aria-pressed="false" aria-controls="timePanel">${lbl(T.bTime)}</button>
@@ -142,6 +144,10 @@ export function page(lang, month) {
 <div id="dsoPanel" class="panel" role="group" aria-label="${en ? WT.bDso : WT.bDso[0]}" hidden>
   <div class="panel-top"><h2>${lbl(WT.dsoTitle)}</h2><button type="button" class="icon close" data-close="dsoPanel" aria-label="${T.close}">×</button></div>
   <div id="dsoList" class="list"></div>
+</div>
+<div id="eventPanel" class="panel" role="group" aria-label="${en ? WT.bEvent : WT.bEvent[0]}" hidden>
+  <div class="panel-top"><h2>${lbl(WT.evTitle)}</h2><button type="button" class="icon close" data-close="eventPanel" aria-label="${T.close}">×</button></div>
+  <div id="eventList" class="evlist"></div>
 </div>
 <div id="places" class="panel" role="dialog" aria-label="${T.placePanel}" hidden>
   <div class="panel-top"><h2>${lbl(T.whose)}</h2><button id="closePlaces" type="button" class="icon close" aria-label="${T.close}">×</button></div>

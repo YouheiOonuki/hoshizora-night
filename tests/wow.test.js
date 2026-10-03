@@ -251,6 +251,49 @@ test('6 暗い星: ヒッパルコス星表（ESA、CC BY-NC 3.0 IGO）の 6.5�
   assert.ok(app.includes("sc.src = '/hoshizora-night/render/hip.js'") && app.includes("const faintOn = () => faintState === 'ok' && st.stage === 'full'"));
 });
 
+/* ---------- 7 イベントの再生 ---------- */
+test('7 月食: 2026-03-03 の皆既月食で、計算の各時刻が国立天文台の発表（official-events.js の tokyo）と 5 分以内、食分 0.03 以内', () => {
+  const O = require('../engine/official-events.js');
+  const e = O.ECLIPSES.find((x) => x.date === '2026-03-03'), t = e.tokyo;
+  const at = (hm) => Date.parse(`2026-03-03T${hm.split('.')[0].padStart(5, '0')}:00+09:00`) + Number('0.' + (hm.split('.')[1] || '0')) * 60e3;
+  const c = W.eclipseContacts('2026-03-03');
+  for (const [k, v] of [['u1', t.start], ['u2', t.totalStart], ['max', t.max], ['u3', t.totalEnd], ['u4', t.end]]) {
+    assert.ok(Math.abs(c[k] - at(v)) <= 5 * 60e3, `${k} ${new Date(c[k] + 9 * 3600e3).toISOString().slice(11, 19)} ≠ ${v}`);
+  }
+  assert.ok(Math.abs(c.mag - Number(t.mag)) < 0.03, String(c.mag));
+  // 影の大きさ（ダンジョンの規則）: 本影の半径 約 0.7°、半影 約 1.2°、月の半径 約 0.26°
+  const s = W.eclipseAt(c.max);
+  assert.ok(s.umbra > 0.65 && s.umbra < 0.75 && s.penumbra > 1.15 && s.penumbra < 1.3 && s.moonR > 0.24 && s.moonR < 0.28);
+  // 皆既の間は月明かりがほとんど無く、満月の夜（食でない）は 1
+  assert.ok(W.eclipseLight(s) < 0.1);
+  assert.strictEqual(W.eclipseLight(W.eclipseAt(Date.parse('2026-10-26T21:00:00+09:00'))), 1);
+});
+
+test('7 これからのイベント: 次の皆既月食（2029-01-01、日本で見える）と放射点のある流星群の次の 3 件。放射点は通常版の表と同じ', () => {
+  const O = require('../engine/official-events.js');
+  const list = W.upcoming(Date.parse('2026-10-03T21:00:00+09:00'), O);
+  assert.deepStrictEqual(list.map((e) => e.kind === 'eclipse' ? e.date : e.shower), ['2029-01-01', 'geminids', 'quadrantids', 'perseids']);
+  const ecl = list[0];
+  assert.strictEqual(ecl.japan, 'visible');
+  assert.ok(ecl.c.u1 < ecl.c.u2 && ecl.c.u2 < ecl.c.max && ecl.c.max < ecl.c.u3 && ecl.c.u3 < ecl.c.u4 && ecl.c.mag > 1);
+  assert.deepStrictEqual(W.RADIANTS, { perseids: [48, 58], geminids: [112, 33], quadrantids: [230, 49] });
+  assert.ok(read('tools/sync-from-sanpo.mjs').includes('W.RADIANTS'), 'sync --check で通常版と突き合わせる');
+  // 流れ星の数: 「1時間に60個程度」→ 60、600 倍で 0.35 秒おき（速すぎないように下限）
+  assert.strictEqual(W.ratePerHour('1時間に60個程度'), 60); assert.strictEqual(W.ratePerHour('1時間に15〜20個程度'), 20); assert.strictEqual(W.ratePerHour(''), 10);
+  assert.strictEqual(W.meteorGap(60, 600), 0.35); assert.strictEqual(W.meteorGap(1, 1), 3);
+  // 放射点から遠ざかる流れ星: 点 p は放射点から 8〜55°、向き q は p に直交して放射点と反対へ
+  const R = [0, 0.6, 0.8];
+  for (let i = 0; i < 50; i++) {
+    const m = W.radiantMeteor(R, i / 50, (i * 7 % 50) / 50), d = Math.acos(R[0] * m.p[0] + R[1] * m.p[1] + R[2] * m.p[2]) / D;
+    assert.ok(d >= 8 - 1e-9 && d <= 55 + 1e-9, String(d));
+    assert.ok(Math.abs(m.q[0] * m.p[0] + m.q[1] * m.p[1] + m.q[2] * m.p[2]) < 1e-9 && R[0] * m.q[0] + R[1] * m.q[1] + R[2] * m.q[2] < 0);
+  }
+  // 画面: 動きを減らす設定では再生せずに見どころの時刻で止める
+  const app = read('app/night.js');
+  assert.ok(app.includes("if (motion) setPlaying(true); else { setPlaying(false); toast(wt('evReduced')); }"));
+  assert.ok(app.includes("ev && ev.kind === 'meteor' && playing && !reduce.matches"));
+});
+
 /* ---------- 共通 ---------- */
 test('文字: 日英で項目が揃い、英語はすべて k132-wow2-en-review.md の承認待ちの文（新しく書いた英語はここだけ）', () => {
   assert.deepStrictEqual(Object.keys(W.TEXT.en).sort(), Object.keys(W.TEXT.ja).sort());

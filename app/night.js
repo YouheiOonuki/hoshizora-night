@@ -58,7 +58,7 @@
   const DSOI = (window.NightDso && window.NightDso.DSO_IMAGES) || [];
   let deep = null;
   let scope = null;   // 双眼鏡・望遠鏡（企画書 75 の 6）: { mode, zoom, prevZoom }
-  const zMax = () => (scope ? scope.zoom : deep ? WOW.ZOOM_DEEP : L.ZOOM.max);
+  const zMax = () => (scope ? scope.zoom : deep ? WOW.ZOOM_DEEP : (ev && ev.kind === 'eclipse') ? WOW.EVENT.eclipseZoom : L.ZOOM.max);
   let selected = null, picked = null, quiz = null, quizSeq = 0, sheetKind = null, fly = null;
   const placeName = (p) => p.name && !EN && kids && p.kana ? p.kana : L.placeText(p, P, EN).main;
 
@@ -237,9 +237,15 @@
         window.__night.stage = st.stage;
       }
     }
-    if (playing) { sim += (now - lastReal) * (trail ? WOW.TRAIL.speed : L.SPEEDS[speedIdx]); dirty = true; }
+    if (playing) { sim += (now - lastReal) * (ev ? ev.speed : trail ? WOW.TRAIL.speed : L.SPEEDS[speedIdx]); dirty = true; }
+    if (ev && playing && sim >= ev.end) { sim = ev.end; setPlaying(false); toast(wt('evDone')); ev.done = true; }
     const frameDt = (now - lastReal) / 1000;
     lastReal = now;
+    // イベントの再生（企画書 75 の 7）: 月食は月を追う（さわると追うのをやめる）
+    if (ev && ev.track === 'moon' && !fly) {
+      const Hm = S.horizonMatrix(sim, place.lat, place.lon), Mm = moon(sim), h = moonH(Hm, Mm);
+      st.az = Math.atan2(h[0], h[1]); st.alt = Math.max(-2 * DEG, Math.asin(h[2]) - (innerWidth < 900 ? 4 : 0) * DEG / st.zoom); dirty = true;
+    }
     // ジャイロ（企画書 75 の 1）: 端末の向きへなめらかに追う（reduced motion ではそのまま向く）
     if (gyro.on && gyro.want) {
       const k = reduce.matches ? 1 : WOW.GYRO.smooth;
@@ -274,7 +280,8 @@
     const bl = bodiesNow();
     const Sn = sun(sim), sunHz = S.apply(H, S.vec(Sn.ra, Sn.dec)), sAltD = Math.asin(sunHz[2]) / DEG;
     const M = moon(sim), mH = moonH(H, M), mAltD = Math.asin(mH[2]) / DEG;
-    const dayF = L.dayFactor(sAltD), starF = L.starFactor(sAltD), moonF = L.moonLight(M.illum, mAltD, dayF);
+    const eclipse = WOW.eclipseAt(sim);   // 月食（企画書 75 の 7）: 地球の影にかかると月明かりも弱まる
+    const dayF = L.dayFactor(sAltD), starF = L.starFactor(sAltD), moonF = L.moonLight(M.illum, mAltD, dayF) * WOW.eclipseLight(eclipse);
     const pxDeg = r.pxPerDeg(st, cw, ch), scale = Math.sqrt(st.zoom);
     const lp = WOW.lightPollution(lightU);   // 街明かり（企画書 75 の 2）
     // 双眼鏡・望遠鏡（企画書 75 の 6）: 口径の分だけ暗い星まで（星表の 8.5 等まで。遅い端末の段階では足さない）
@@ -353,11 +360,28 @@
       const north = b ? Math.atan2(b.x - moonP.x, -(b.y - moonP.y)) * -1 : 0;
       const ci = 2 * M.illum - 1;
       sprites.push({ mode: 3, x: moonP.x, y: moonP.y, size: rr * 3.4, r: 1 / 3.4, color: [0.97, 0.95, 0.88], alpha: 1, rot: north,
-        sun: sunVec(Math.acos(Math.max(-1, Math.min(1, ci))), towardSun(mH, moonP), north), occ: 1 - dayF, earth: 0.05 * (1 - dayF * 0.8) });
+        sun: sunVec(Math.acos(Math.max(-1, Math.min(1, ci))), towardSun(mH, moonP), north), occ: 1 - dayF, earth: 0.05 * (1 - dayF * 0.8),
+        shadow: eclipse.sep < eclipse.penumbra + eclipse.moonR ? [-eclipse.dE / eclipse.moonR, eclipse.dN / eclipse.moonR, eclipse.umbra / eclipse.moonR, eclipse.penumbra / eclipse.moonR] : null });
       bodyPos.moon.r = rr;
     }
     lastFrameState = { bodyPos, dayF, starF };
-    /* 流れ星 */
+    /* 流れ星（再生中の流星群は放射点から。企画書 75 の 7） */
+    const evMets = [];
+    if (ev && ev.kind === 'meteor' && playing && !reduce.matches) {
+      if (now >= ev.nextMet) {
+        const Rh = S.apply(starM, ev.R);
+        for (let k = 0; k < 6; k++) { const m = WOW.radiantMeteor(Rh, Math.random(), Math.random()); if (m.p[2] > 0.08) { ev.mets.push({ t0: now, dur: 650 + Math.random() * 500, p: m.p, q: m.q, ang: (10 + Math.random() * 16) * DEG }); ev.spawned = (ev.spawned || 0) + 1; break; } }
+        ev.nextMet = now + WOW.meteorGap(ev.perHour, ev.speed) * 1000 * (0.5 + Math.random());
+      }
+      ev.mets = ev.mets.filter((m) => now - m.t0 < m.dur);
+      for (const m of ev.mets) {
+        const k = (now - m.t0) / m.dur, head = Math.min(1, k * 1.15), tail = Math.max(0, k * 1.15 - 0.6);
+        const at = (u) => { const a = m.ang * u, v = m.p.map((x, i) => x * Math.cos(a) + m.q[i] * Math.sin(a)); return v[2] > 0 ? r.project(v, view, cw, ch) : null; };
+        const A2 = at(tail), B2 = at(head);
+        if (A2 && B2) evMets.push({ a: A2.clip, b: B2.clip, w: 2.6 * dprCap(), alpha: Math.sin(Math.PI * Math.min(1, k)) * 0.95 * starF * (1 - moonF * 0.5) });
+      }
+      dirty = true;
+    }
     let met = null;
     if (meteorDraw) {
       const k = (now - meteorDraw.t0) / meteorDraw.dur, head = Math.min(1, k * 1.15), tail = Math.max(0, k * 1.15 - 0.6);
@@ -395,7 +419,7 @@
       twinkle: twinkleOn ? 1 : 0, limit, twilight: L.twilightWeight(sim, place.lat, place.lon) * (1 - dayF), dusk: 1 - ease,
       milky: st.stage === 'full' ? mwF * ease : 0, milkyTex: st.stage === 'full', noise: true, hills: true,
       sky: { sun: sunHz, day: dayF, glow: 1, moon: mH, moonK: moonF, ext: 1, dim: 1 - 0.3 * (1 - starF), city: lp.glow },
-      glows, quads, sprites, moon: null, lineAlpha: 0, allLines: 0, meteor: met });
+      glows, quads, sprites, moon: null, lineAlpha: 0, allLines: 0, meteor: met, meteors: evMets });
 
     /* 名前 */
     avoid = uiRects();
@@ -486,6 +510,7 @@
     } else {
       const dx = cur.x - prev.x, dy = cur.y - prev.y, f = 2 / k();
       if (gyro.on && Math.abs(dx) + Math.abs(dy) > 6) stopGyro(true);
+      if (ev && ev.track && Math.abs(dx) + Math.abs(dy) > 6) ev.track = null;
       st.az = (st.az - dx * f / Math.max(0.35, Math.cos(st.alt)) + 2 * Math.PI) % (2 * Math.PI);
       st.alt = Math.max(-5 * DEG, Math.min(89 * DEG, st.alt + dy * f));
       if (down) down.moved += Math.abs(dx) + Math.abs(dy);
@@ -681,7 +706,7 @@
   $('red').addEventListener('click', () => { red = !red; document.body.classList.toggle('red', red); setPressed('red', red); if (red) toast(TT('redToast')); });
   if ($('moonBtn')) $('moonBtn').addEventListener('click', () => { closePanels(); openBody('moon', true); });
   // 時間たび
-  function closePanels() { for (const [p, b] of [['timePanel', 'timeBtn'], ['places', 'place'], ['lightPanel', 'lightBtn'], ['dsoPanel', 'dsoBtn']]) { $(p).hidden = true; if (b === 'place') $(b).setAttribute('aria-expanded', 'false'); else setPressed(b, b === 'lightBtn' ? lightU > 0 : false); } }
+  function closePanels() { for (const [p, b] of [['timePanel', 'timeBtn'], ['places', 'place'], ['lightPanel', 'lightBtn'], ['dsoPanel', 'dsoBtn'], ['eventPanel', 'eventBtn']]) { $(p).hidden = true; if (b === 'place') $(b).setAttribute('aria-expanded', 'false'); else setPressed(b, b === 'lightBtn' ? lightU > 0 : false); } }
   $('timeBtn').addEventListener('click', () => { const open = $('timePanel').hidden; closePanels(); if (open) { $('timePanel').hidden = false; setPressed('timeBtn', true); } });
   document.querySelectorAll('[data-close]').forEach((b) => b.addEventListener('click', closePanels));
   document.querySelectorAll('#timePanel [data-d]').forEach((b) => b.addEventListener('click', () => jumpTo(sim + Number(b.dataset.d) * 86400000)));
@@ -865,6 +890,55 @@
   $('scopeBtn').addEventListener('click', () => setScope(!scope ? 'bino' : scope.mode === 'bino' ? 'tele' : null));
   addEventListener('resize', () => { if (scope) scopeUi(); });
 
+  /* ---------------- 7 イベントの再生（企画書 75）: 次の皆既月食・流星群の極大を早回しで ----------------
+     日付は engine/official-events.js（国立天文台の発表の写し）、月食の時刻はこのサイトの計算（render/wow.js） */
+  let ev = null;
+  const hm = (ms) => new Date(ms + 9 * 3600e3).toISOString().slice(11, 16);
+  const dayText = (date) => {
+    const [y, m, d] = date.slice(0, 10).split('-').map(Number), w = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+    return EN ? new Intl.DateTimeFormat('en-US', { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC' }).format(new Date(Date.UTC(y, m - 1, d))) : `${y}年${m}月${d}日（${'日月火水木金土'[w]}）`;
+  };
+  function evName(e) {
+    if (e.kind === 'eclipse') return `${dayText(e.date)} ${wt('evEclipse')}`;
+    const s2 = L.SHOWERS[e.shower]; return `${dayText(e.peak)} ${EN ? s2[1] : s2[0]}${wt('evPeak')}`;
+  }
+  function buildEvents() {
+    const box = $('eventList'); box.textContent = '';
+    const list = WOW.upcoming(Date.now(), O);
+    if (!list.length) { const p2 = document.createElement('p'); p2.className = 'note'; p2.textContent = wt('evNone'); box.appendChild(p2); return; }
+    for (const e of list) {
+      const div = document.createElement('div'); div.className = 'evitem';
+      const b = document.createElement('b'); b.textContent = evName(e) + (e.kind === 'eclipse' && e.japan === 'visible' ? `（${wt('evJapan')}）`.replace(/^（(.*)）$/, EN ? ' ($1)' : '（$1）') : '');
+      const sm = document.createElement('small');
+      sm.textContent = e.kind === 'eclipse' ? wt('evEclTimes')(hm(e.c.u1), hm(e.c.u2), hm(e.c.u3), hm(e.c.u4)) : wt('evRate')(e.rate);
+      const bt = document.createElement('button'); bt.type = 'button'; bt.textContent = wt('evPlay');
+      bt.addEventListener('click', () => playEvent(e));
+      div.append(b, sm, bt); box.appendChild(div);
+    }
+  }
+  function playEvent(e) {
+    closePanels(); closeSheet(); if (scope) setScope(null); if (trail) setTrail(false); stopGyro(false);
+    const name = evName(e), motion = !reduce.matches;
+    ev = { kind: e.kind, speed: e.kind === 'eclipse' ? WOW.EVENT.eclipseSpeed : WOW.EVENT.meteorSpeed, track: null, mets: [], nextMet: 0, done: false };
+    if (e.kind === 'eclipse') {
+      ev.track = 'moon'; ev.end = e.c.u4 + 10 * 60e3;
+      jumpTo(motion ? e.c.u1 - WOW.EVENT.eclipseLeadMin * 60e3 : e.c.max); st.zoom = WOW.EVENT.eclipseZoom;
+    } else {
+      ev.R = S.vec(e.radiant[0] * DEG, e.radiant[1] * DEG); ev.perHour = WOW.ratePerHour(e.rate); ev.end = e.view + WOW.EVENT.meteorAfterH * 3600e3;
+      jumpTo(motion ? e.view - WOW.EVENT.meteorBeforeH * 3600e3 : e.view); st.zoom = 1;
+      const h = S.apply(S.starMatrix(motion ? e.view : sim, place.lat, place.lon), ev.R);
+      st.az = Math.atan2(h[0], h[1]); st.alt = Math.max(20 * DEG, Math.min(55 * DEG, Math.asin(h[2])));
+    }
+    fly = null;
+    $('evText').textContent = wt('evPlaying')(name); $('eventBar').hidden = false;
+    if (motion) setPlaying(true); else { setPlaying(false); toast(wt('evReduced')); }
+    window.__night.event = { kind: e.kind, end: ev.end, name };
+    dirty = true;
+  }
+  function stopEvent() { ev = null; $('eventBar').hidden = true; setPlaying(false); window.__night.event = null; st.zoom = Math.min(st.zoom, L.ZOOM.max); dirty = true; }
+  $('evStop').addEventListener('click', stopEvent);
+  $('eventBtn').addEventListener('click', () => { const open = $('eventPanel').hidden; closePanels(); if (open) { buildEvents(); $('eventPanel').hidden = false; setPressed('eventBtn', true); } });
+
   // 使い方
   $('helpBtn').addEventListener('click', () => { $('help').hidden = false; });
   $('helpStart').addEventListener('click', () => { $('help').hidden = true; canvas.focus({ preventScroll: true }); });
@@ -912,7 +986,7 @@
 
   window.__night = { stage: 'full', fps: [], playing, picked: null, get place() { return place.id; }, sheet: null, toast: null, get sim() { return sim; }, get limit() { return st.limit; },
     allLines: showLines, intro: () => introStart == null, meteor: () => !!meteor, forceMeteor: (dur) => { nextMeteor = 0; forcedDur = dur || 0; },
-    gyro: null, light: null, art: false, trail: false, trailFrames: 0, scope: null, faint: 0, setScope: (m) => setScope(m),
+    gyro: null, light: null, art: false, trail: false, trailFrames: 0, scope: null, faint: 0, setScope: (m) => setScope(m), event: null, playEvent: (i) => playEvent(WOW.upcoming(Date.now(), O)[i]), eclipse: () => WOW.eclipseAt(sim), evSpawned: () => (ev ? ev.spawned || 0 : 0),
     lookAt: (raDeg, decDeg) => { const h = S.apply(S.starMatrix(sim, place.lat, place.lon), S.vec(raDeg * DEG, decDeg * DEG)); st.az = Math.atan2(h[0], h[1]); st.alt = Math.asin(h[2]); fly = null; dirty = true; return Math.asin(h[2]) / DEG; }, artState: () => r.artState(), deep: null, photoState: () => r.photoState(), openDso: (id) => openDso(DSOI.find((d) => d.id === id), true), setLight: (u) => { lightSlider.value = String(Math.round(u * WOW.LIGHT.steps)); lightSlider.dispatchEvent(new Event('input')); }, reduce: reduce.matches, select: (x, y) => handleTap(x, y), view: st, flying: () => !!fly, textures: () => r.textures(),
     loading: () => { const t = r.textures(); return params.get('tex') !== 'off' && (!t.milky || !t.moon || performance.now() < texSettle); },
     where: (name) => {   // 確かめ用: 名前の付いた星・惑星・月の画面上の位置（CSS px）。見えなければ null

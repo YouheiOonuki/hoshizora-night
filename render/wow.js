@@ -8,11 +8,12 @@
      4 星雲・星団へのズーム（ESA/Hubble の実写。tools/build-dso.py → render/dso.js。画像の向きと大きさを空に合わせる）
      5 星の軌跡（時間を早回しし、星を別の絵に描きためて少しずつ暗くする。動きを減らす設定では 2 時間分を 1 枚に）
      6 双眼鏡・望遠鏡（円い視野で拡大し、限界等級を口径の分だけ上げる。暗い星はヒッパルコス星表 render/hip.js を押したときに読む）
-   （7〜8 は順に足す） */
+     7 イベントの再生（次の皆既月食・流星群の極大。日付は engine/official-events.js（国立天文台の発表の写し）、欠けの時刻はこのサイトの計算）
+   （8 は順に足す） */
 (function (root) {
   const W = (typeof module !== 'undefined') ? require('./wmm.js') : root.NightWMM;
   // eslint-disable-next-line no-undef
-  const A = (typeof module !== 'undefined') ? require('../engine/astro.js') : { sun, altAz, lstRad, precessor, DEG };
+  const A = (typeof module !== 'undefined') ? require('../engine/astro.js') : { sun, moon, altAz, lstRad, precessor, DEG };
   const D = Math.PI / 180;
 
   /* ---------- 1 ジャイロ ---------- */
@@ -206,6 +207,82 @@
     return out;
   }
 
+  /* ---------- 7 イベントの再生 ----------
+     月食: 地球の影の大きさはダンジョンの規則（大気の分で 1/50 大きく）:
+       本影の半径 = 1.02 ×（月の視差 − 太陽の視半径 + 太陽の視差）、半影の半径 = 1.02 ×（月の視差 + 太陽の視半径 + 太陽の視差）
+     月と太陽の位置は engine/astro.js（通常版の写し）。2026-03-03 の皆既月食で国立天文台の発表（欠け始め 18:49.8・皆既 20:04.0〜21:03.4・
+     終わり 22:17.6・食分 1.156。official-events.js の tokyo）と数分以内・食分 0.03 以内になることを tests/wow.test.js で確かめる */
+  const ECL = { k: 1.02, sunSemi: 0.2666, sunPar: 8.794 / 3600, moonK: 0.2725 };
+  function eclipseAt(ms) {
+    const S = A.sun(ms), M = A.moon(ms);
+    const ar = S.ra + Math.PI, ad = -S.dec;   // 影の中心（太陽の反対）
+    const c = Math.sin(ad) * Math.sin(M.dec) + Math.cos(ad) * Math.cos(M.dec) * Math.cos(M.ra - ar);
+    const sep = Math.acos(Math.max(-1, Math.min(1, c))) / D, pm = M.parallax / D;
+    const ss = ECL.sunSemi / S.dist, ps = ECL.sunPar / S.dist;
+    let dra = ar - M.ra; dra = Math.atan2(Math.sin(dra), Math.cos(dra));
+    return { sep, umbra: ECL.k * (pm - ss + ps), penumbra: ECL.k * (pm + ss + ps), moonR: ECL.moonK * pm,
+      dE: dra * Math.cos(M.dec) / D, dN: (ad - M.dec) / D };
+  }
+  /** その日（日本時間）の前後で月食の各時刻（UNIX ミリ秒）。u1 欠け始め・u2 皆既の始まり・max 食の最大・u3 皆既の終わり・u4 終わり、mag 食分 */
+  function eclipseContacts(date) {
+    const t0 = Date.parse(date + 'T00:00:00+09:00') - 12 * 3600e3;
+    let best = null;
+    for (let t = t0; t < t0 + 48 * 3600e3; t += 120e3) { const e = eclipseAt(t); if (!best || e.sep < best.sep) best = { t, sep: e.sep }; }
+    for (let t = best.t - 120e3; t <= best.t + 120e3; t += 5e3) { const e = eclipseAt(t); if (e.sep < best.sep) best = { t, sep: e.sep }; }
+    const e0 = eclipseAt(best.t), out = { max: best.t, mag: (e0.umbra + e0.moonR - e0.sep) / (2 * e0.moonR) };
+    const cross = (f, dir) => {   // 最大から dir の向きに、f が 0 を越える時刻
+      let a = best.t, fa = f(eclipseAt(a));
+      if (fa > 0) return null;
+      for (let t = best.t + dir * 60e3; Math.abs(t - best.t) < 5 * 3600e3; t += dir * 60e3) {
+        const ft = f(eclipseAt(t));
+        if (ft > 0) { let lo = a, hi = t; for (let i = 0; i < 12; i++) { const m = (lo + hi) / 2; if (f(eclipseAt(m)) > 0) hi = m; else lo = m; } return Math.round((lo + hi) / 2); }
+        a = t;
+      }
+      return null;
+    };
+    const outer = (e) => e.sep - (e.umbra + e.moonR), inner = (e) => e.sep - (e.umbra - e.moonR);
+    out.u1 = cross(outer, -1); out.u4 = cross(outer, 1); out.u2 = cross(inner, -1); out.u3 = cross(inner, 1);
+    return out;
+  }
+  /** 月の欠け具合（0〜1。1 = 欠けていない）。月明かりを弱めるのに使う（本影にかかった割合の近似） */
+  function eclipseLight(e) {
+    if (e.sep > e.penumbra + e.moonR) return 1;
+    const umb = Math.max(0, Math.min(1, (e.umbra + e.moonR - e.sep) / (2 * e.moonR)));
+    const pen = Math.max(0, Math.min(1, (e.penumbra + e.moonR - e.sep) / (2 * e.moonR)));
+    return Math.max(0.02, 1 - 0.97 * umb - 0.25 * pen * (1 - umb));
+  }
+  // 放射点（J2000 の赤経・赤緯、度）。通常版の tools/calendar-pages.js の SHOWERS の radiant と同じ（tools/sync-from-sanpo.mjs --check が突き合わせる）。
+  // 通常版に放射点の無い流星群は再生しない（向きを作らない）
+  const RADIANTS = { perseids: [48, 58], geminids: [112, 33], quadrantids: [230, 49] };
+  /** これからのイベント: 次の皆既月食（日本で見えるかは表のまま）と、放射点のある流星群の極大の次の 3 件 */
+  function upcoming(nowMs, O) {
+    const today = new Date(nowMs + 9 * 3600e3).toISOString().slice(0, 10), out = [];
+    const ecl = O.ECLIPSES.find((e) => e.body === 'moon' && e.type === '皆既月食' && e.date >= today);
+    if (ecl) out.push({ kind: 'eclipse', date: ecl.date, type: ecl.type, japan: ecl.japan, src: ecl.src, c: eclipseContacts(ecl.date) });
+    for (const m of O.METEOR_PEAKS) {
+      if (!RADIANTS[m.shower] || Date.parse(m.view) < nowMs - 6 * 3600e3) continue;
+      out.push({ kind: 'meteor', shower: m.shower, peak: m.peak, view: Date.parse(m.view), rate: m.rate, src: m.src, radiant: RADIANTS[m.shower] });
+      if (out.filter((x) => x.kind === 'meteor').length >= 3) break;
+    }
+    return out;
+  }
+  /** 「1時間に60個程度」→ 60（範囲なら大きいほう）。読めなければ 10 */
+  const ratePerHour = (txt) => { const m = String(txt || '').match(/(\d+)(?:〜(\d+))?個/); return m ? +(m[2] || m[1]) : 10; };
+  /** 再生中の流れ星の間隔（秒）: 1 時間あたりの数 × 早回しの倍率。速すぎ・遅すぎは 0.35〜3 秒に収める */
+  const meteorGap = (perHour, speed) => Math.max(0.35, Math.min(3, 3600 / (perHour * speed)));
+  /** 放射点 R（地平座標の単位ベクトル）から出る流れ星: 放射点から 8〜55° の点 p と、放射点から遠ざかる向き q */
+  function radiantMeteor(R, u1, u2) {
+    const d = (8 + 47 * u1) * D, az = u2 * 2 * Math.PI;
+    let a = Math.abs(R[2]) < 0.9 ? [0, 0, 1] : [1, 0, 0];
+    const e1 = norm3(cross3(R, a)), e2 = cross3(R, e1);
+    const p = [0, 1, 2].map((i) => R[i] * Math.cos(d) + (e1[i] * Math.cos(az) + e2[i] * Math.sin(az)) * Math.sin(d));
+    const cd = R[0] * p[0] + R[1] * p[1] + R[2] * p[2];
+    return { p, q: norm3(p.map((x, i) => x * cd - R[i])) };
+  }
+  const cross3 = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+  const norm3 = (v) => { const m = Math.hypot(...v); return v.map((x) => x / m); };
+  const EVENT = { eclipseSpeed: 600, meteorSpeed: 600, meteorBeforeH: 2, meteorAfterH: 1, eclipseLeadMin: 20, eclipseZoom: 10 };
+
   /* ---------- 文字（新しい UI の文字列。英語は k132-wow2-en-review.md でオーナーの承認待ち） ---------- */
   const TEXT = {
     ja: {
@@ -240,6 +317,19 @@
       scopeOff: ['肉眼に戻りました', 'めで みる そらに もどったよ'],
       scopeCap: ['（描ける星は星表の 8.5 等まで）', ''],
       hipCredit: ['暗い星: ヒッパルコス星表（Credit: ESA、CC BY-NC 3.0 IGO）', 'くらい ほし: ESA'],
+      bEvent: ['天文イベント', 'てんもん イベント'],
+      evTitle: ['イベントを早回しで見る', 'はやまわしで みる'],
+      evEclipse: ['皆既月食', 'かいきげっしょく'],
+      evJapan: ['日本で見える', 'にほんで みえる'],
+      evEclTimes: [(a, b, c, d) => `欠け始め ${a} → 皆既 ${b}〜${c} → 終わり ${d}（日本時間。このサイトの計算で目安、国立天文台の発表と数分ずれることがあります）`, (a, b, c, d) => `かけはじめ ${a}、ぜんぶ かくれる ${b}〜${c}、おわり ${d}`],
+      evPeak: ['が極大', 'が いちばん おおい'],
+      evRate: [(r) => `${r}（国立天文台）`, (r) => r],
+      evPlay: ['再生', 'さいせい'],
+      evStop: ['止める', 'とめる'],
+      evPlaying: [(n) => `再生中: ${n}`, (n) => `さいせいちゅう: ${n}`],
+      evDone: ['再生が終わりました', 'おわったよ'],
+      evReduced: ['動きを減らす設定なので、いちばんの見どころの時刻で止めて見せます', 'いちばんの ところを みせるよ'],
+      evNone: ['この先の予定は、国立天文台の発表を写した表にまだありません', 'まだ よていが ないよ'],
     },
     en: {
       bGyro: 'Gyro',
@@ -273,9 +363,22 @@
       scopeOff: 'Back to naked eye',
       scopeCap: '(the star catalog goes to magnitude 8.5)',
       hipCredit: 'Faint stars: Hipparcos Catalogue (Credit: ESA, CC BY-NC 3.0 IGO)',
+      bEvent: 'Sky events',
+      evTitle: 'Watch an event in fast motion',
+      evEclipse: 'Total lunar eclipse',
+      evJapan: 'visible from Japan',
+      evEclTimes: (a, b, c, d) => `Partial begins ${a} → total ${b}–${c} → ends ${d} (Japan time; calculated by this site, may differ from NAOJ by a few minutes)`,
+      evPeak: ' peak',
+      evRate: () => 'Meteors fly out from the radiant in fast motion',
+      evPlay: 'Play',
+      evStop: 'Stop',
+      evPlaying: (n) => `Playing: ${n}`,
+      evDone: 'Replay finished',
+      evReduced: 'Reduced motion is on, so the sky is shown at the key moment without motion',
+      evNone: 'No upcoming events in the published table yet',
     },
   };
 
-  const api = { magnetic, decimalYear, declination, deviceView, compassOffset, GYRO, needCalibration, follow, LIGHT, skyMag, nelm, lightPollution, photoCorners, ZOOM_DEEP, zoomFor, altOf, sunAlt, viewTime, TRAIL, trailFade, trailTimes, SCOPE, scopeLimit, scopeZoom, decodeHip, TEXT };
+  const api = { magnetic, decimalYear, declination, deviceView, compassOffset, GYRO, needCalibration, follow, LIGHT, skyMag, nelm, lightPollution, photoCorners, ZOOM_DEEP, zoomFor, altOf, sunAlt, viewTime, TRAIL, trailFade, trailTimes, SCOPE, scopeLimit, scopeZoom, decodeHip, ECL, eclipseAt, eclipseContacts, eclipseLight, RADIANTS, upcoming, ratePerHour, meteorGap, radiantMeteor, EVENT, TEXT };
   if (typeof module !== 'undefined') module.exports = api; else root.NightWow = api;
 })(typeof window !== 'undefined' ? window : globalThis);

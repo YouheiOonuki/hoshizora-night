@@ -211,6 +211,43 @@ const WINTER = '#35.69,139.69,1800021600';  // 2027-01-15 23:00 JST 東京（冬
     R.features[6] = F;
   }
 
+  /* 7 イベントの再生: 一覧（次の皆既月食・流星群）→ 月食は月を追って 600 倍、動きを減らす設定は食の最大で止まる（赤い月）。流星群は放射点から流れ星 */
+  if (want(7)) {
+    const F = { shots: [] };
+    for (const [dev, tag] of [[PHONE, 'phone'], [PC, 'pc']]) {
+      // 動きを減らす設定: 食の最大で止まった赤い月
+      {
+        const { ctx, p, errors } = await open(dev, '?probe=off', { reducedMotion: 'reduce' });
+        await p.click('#eventBtn'); await p.waitForTimeout(300);
+        F.shots.push(await shot(p, `7-event-${tag}-list.png`));
+        F[tag] = { items: await p.evaluate(() => [...document.querySelectorAll('.evitem b')].map((e) => e.textContent)) };
+        await p.click('.evitem button >> nth=0'); await p.waitForTimeout(900);
+        F[tag].reduced = await p.evaluate(() => ({ ev: window.__night.event, sim: window.__night.sim, playing: window.__night.playing, ecl: window.__night.eclipse(), toast: window.__night.toast }));
+        F.shots.push(await shot(p, `7-event-${tag}-eclipse-max.png`));
+        F[tag].errorsR = errors; await ctx.close();
+      }
+      // 動きあり: 月食は月を追って進む、流星群は流れ星
+      {
+        const { ctx, p, errors } = await open(dev, '?probe=off', { reducedMotion: 'no-preference' });
+        await p.evaluate(() => window.__night.playEvent(0)); await p.waitForTimeout(400);
+        const a = await p.evaluate(() => [window.__night.sim, performance.now()]); await p.waitForTimeout(2500);
+        const b = await p.evaluate(() => [window.__night.sim, performance.now(), window.__night.eclipse()]);
+        F[tag].eclipseSpeed = Math.round((b[0] - a[0]) / (b[1] - a[1])); F[tag].moonPos = await p.evaluate(() => window.__night.where('moon'));
+        F.shots.push(await shot(p, `7-event-${tag}-eclipse-play.png`));
+        await p.evaluate(() => window.__night.playEvent(1)); await p.waitForTimeout(4000);
+        F[tag].meteors = await p.evaluate(() => window.__night.evSpawned());
+        F.shots.push(await shot(p, `7-event-${tag}-meteors.png`));
+        await p.click('#evStop'); await p.waitForTimeout(200);
+        F[tag].stopped = await p.evaluate(() => window.__night.event === null && document.getElementById('eventBar').hidden);
+        F[tag].errors = errors; await ctx.close();
+      }
+    }
+    const okT = (x) => x.items.length >= 2 && /皆既月食|Total lunar eclipse/.test(x.items[0]) && x.reduced.playing === false && x.reduced.ecl.sep < x.reduced.ecl.umbra - x.reduced.ecl.moonR
+      && x.eclipseSpeed > 400 && x.meteors >= 3 && x.stopped && !x.errors.length && !x.errorsR.length;
+    F.ok = okT(F.phone) && okT(F.pc);
+    R.features[7] = F;
+  }
+
   await browser.close(); srv.close();
   fs.writeFileSync(path.join(OUT, 'result.json'), JSON.stringify(R, null, 2));
   const ng = Object.entries(R.features).filter(([, f]) => !f.ok).map(([k]) => k);

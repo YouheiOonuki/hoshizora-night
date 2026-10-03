@@ -181,7 +181,7 @@ void main(){ float c = cos(uRot), s = sin(uRot); vUV = aC; vec2 q = vec2(c * aC.
   const SP_FS = `
 precision highp float;
 uniform int uMode; uniform vec3 uColor; uniform float uAlpha; uniform float uR; uniform vec3 uSunDir; uniform float uAspect; uniform float uRing; uniform float uBands;
-uniform sampler2D uTex; uniform float uHasTex; uniform float uEarth; uniform float uOcc;
+uniform sampler2D uTex; uniform float uHasTex; uniform float uEarth; uniform float uOcc; uniform vec4 uShadow;
 varying vec2 vUV;
 void main(){
   vec2 d = vUV;                                       // 板の上の位置 −1〜1（右・上）。円盤の半径は uR
@@ -221,6 +221,13 @@ void main(){
     if (uBands > 0.0) albedo *= 1.0 - uBands * 0.18 * (0.5 + 0.5 * sin(q.y * 14.0 + 0.6)) * smoothstep(0.85, 0.2, abs(q.y));
     float limb = 0.75 + 0.25 * z;                    // 縁が少し暗い
     col = albedo * (lambert * limb) + albedo * uEarth * (1.0 - lambert);   // 影の側は地球照でうっすら
+    if (uMode == 3 && uShadow.z > 0.0) {             // 月食（企画書 75 の 7）: 地球の本影は赤黒く、半影は少し暗く。uShadow = (影の中心 x, y, 本影, 半影)（月の半径が 1）
+      float ds = length(q - uShadow.xy);
+      float pen = clamp((ds - uShadow.z) / max(uShadow.w - uShadow.z, 0.01), 0.0, 1.0);
+      float umb = smoothstep(uShadow.z - 0.06, uShadow.z + 0.06, ds);
+      vec3 red = albedo * vec3(0.30, 0.09, 0.04) * (0.6 + 0.4 * smoothstep(0.0, uShadow.z, ds));
+      col = mix(red, col * (0.45 + 0.55 * pen), umb);
+    }
     a = (1.0 - smoothstep(uR * 0.96, uR * 1.03, r)) * mix(clamp(lambert * 1.6, 0.0, 1.0), 1.0, uOcc);   // 昼は影の側が空に溶ける
     if (uRing > 0.0 && d.y < 0.0) { col = mix(col, uColor * 0.95, ring * 0.8); }   // 手前の環
   } else if (ring > 0.0) { col = uColor * 0.9; a = ring * 0.85; }
@@ -318,7 +325,7 @@ void main(){ vec2 e = min(vUV, 1.0 - vUV); float edge = smoothstep(0.0, 0.06, mi
     const minmax = gl.getExtension('EXT_blend_minmax');
     const ln = program(gl, LN_VS, LN_FS, ['uHz', 'uView', 'uScale', 'uHills', 'uColor', 'uOff']);
     const ql = program(gl, QL_VS, QL_FS, ['uColor', 'uCore', 'uDash']);
-    const sp = program(gl, SP_VS, SP_FS, ['uClip', 'uHalf', 'uRot', 'uMode', 'uColor', 'uAlpha', 'uR', 'uSunDir', 'uAspect', 'uRing', 'uBands', 'uTex', 'uHasTex', 'uEarth', 'uOcc']);
+    const sp = program(gl, SP_VS, SP_FS, ['uClip', 'uHalf', 'uRot', 'uMode', 'uColor', 'uAlpha', 'uR', 'uSunDir', 'uAspect', 'uRing', 'uBands', 'uTex', 'uHasTex', 'uEarth', 'uOcc', 'uShadow']);
     const me = program(gl, MET_VS, MET_FS, ['uA']);
     const im = program(gl, IMG_VS, IMG_FS, ['uClip', 'uBx', 'uBy', 'uTex', 'uAlpha', 'uSat']);
     const ar = program(gl, ART_VS, ART_FS, ['uHz', 'uView', 'uScale', 'uTex', 'uColor', 'uAlpha', 'uMask', 'uHills']);
@@ -530,7 +537,7 @@ void main(){ vec2 e = min(vUV, 1.0 - vUV); float edge = smoothstep(0.0, 0.06, mi
       gl.uniform1f(sp.U.uRot, o.rot || 0); gl.uniform1i(sp.U.uMode, o.mode); gl.uniform3fv(sp.U.uColor, o.color || [1, 1, 1]);
       gl.uniform1f(sp.U.uAlpha, o.alpha == null ? 1 : o.alpha); gl.uniform1f(sp.U.uR, o.r || 0.3);
       gl.uniform3fv(sp.U.uSunDir, o.sun || [0, 0, 1]); gl.uniform1f(sp.U.uAspect, o.aspect || 1);
-      gl.uniform1f(sp.U.uRing, o.ring ? 1 : 0); gl.uniform1f(sp.U.uBands, o.bands || 0); gl.uniform1f(sp.U.uEarth, o.earth || 0); gl.uniform1f(sp.U.uOcc, o.occ == null ? 1 : o.occ);
+      gl.uniform1f(sp.U.uRing, o.ring ? 1 : 0); gl.uniform1f(sp.U.uBands, o.bands || 0); gl.uniform1f(sp.U.uEarth, o.earth || 0); gl.uniform1f(sp.U.uOcc, o.occ == null ? 1 : o.occ); gl.uniform4fv(sp.U.uShadow, o.shadow || [0, 0, 0, 0]);
       gl.activeTexture(gl.TEXTURE0); const mt = o.mode === 3 ? tex.moon : null;
       gl.bindTexture(gl.TEXTURE_2D, mt || blank); gl.uniform1i(sp.U.uTex, 0); gl.uniform1f(sp.U.uHasTex, mt ? texK('moon', now) : 0);
       gl.blendFunc(gl.SRC_ALPHA, o.mode === 0 ? gl.ONE : gl.ONE_MINUS_SRC_ALPHA);
@@ -627,8 +634,8 @@ void main(){ vec2 e = min(vUV, 1.0 - vUV); float edge = smoothstep(0.0, 0.06, mi
       // 画面の上の柔らかい線（星座線・大三角）
       for (const q of st.quads || []) drawQuadLines(q, cssW, cssH, st.dpr || 1);
       // 流れ星
-      if (st.meteor) {
-        const m = st.meteor, dx = m.b[0] - m.a[0], dy = m.b[1] - m.a[1], len = Math.hypot(dx * w, dy * h) || 1;
+      for (const m of (st.meteors || []).concat(st.meteor ? [st.meteor] : [])) {
+        const dx = m.b[0] - m.a[0], dy = m.b[1] - m.a[1], len = Math.hypot(dx * w, dy * h) || 1;
         const nx = -dy * h / len * m.w / w, ny = dx * w / len * m.w / h;
         gl.bindBuffer(gl.ARRAY_BUFFER, metXY);
         gl.bufferSubData(gl.ARRAY_BUFFER, 0, new Float32Array([m.a[0] - nx * 0.2, m.a[1] - ny * 0.2, m.a[0] + nx * 0.2, m.a[1] + ny * 0.2, m.b[0] - nx, m.b[1] - ny, m.b[0] + nx, m.b[1] + ny]));

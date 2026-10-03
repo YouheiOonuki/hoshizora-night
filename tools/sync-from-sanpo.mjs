@@ -71,6 +71,15 @@ export function showerNames(text, table) {
   return out;
 }
 
+/** calendar-pages.js の SHOWERS から { id: [赤経, 赤緯] }（radiant のあるものだけ） */
+export function radiants(text) {
+  const i = text.indexOf('const SHOWERS = {');
+  const body = text.slice(i, text.indexOf('\n};', i));
+  const out = {};
+  for (const m of body.matchAll(/^\s*'?([a-z-]+)'?: \{[^\n]*?radiant: \[(-?[\d.]+), (-?[\d.]+)\]/gm)) out[m[1]] = [+m[2], +m[3]];
+  return out;
+}
+
 /** フル版の「今夜の見どころ」の流星群の名前（render/look.js）が通常版の表と同じか */
 async function checkNames(commit) {
   const L = createRequire(import.meta.url)('../render/look.js');
@@ -82,7 +91,15 @@ async function checkNames(commit) {
     if (mine[0] !== ja[id] || mine[1] !== en[id]) { ng++; console.log(`NG  流星群 ${id}: フル版 ${mine.join(' / ')} ／ 通常版 ${ja[id]} / ${en[id]}`); }
   }
   console.log(`${ng ? 'NG ' : 'OK '} 流星群の名前 ${Object.keys(ja).length} 件（render/look.js と通常版の calendar-pages*.js）`);
-  return ng;
+  // 企画書 75 の 7: 再生に使う放射点（render/wow.js の RADIANTS）が通常版の SHOWERS の radiant と同じか
+  const W = createRequire(import.meta.url)('../render/wow.js');
+  const rad = radiants(await readSource(commit, 'tools/calendar-pages.js'));
+  let ng2 = 0;
+  for (const id of new Set([...Object.keys(rad), ...Object.keys(W.RADIANTS)])) {
+    if (JSON.stringify(rad[id]) !== JSON.stringify(W.RADIANTS[id])) { ng2++; console.log(`NG  放射点 ${id}: フル版 ${W.RADIANTS[id]} ／ 通常版 ${rad[id]}`); }
+  }
+  console.log(`${ng2 ? 'NG ' : 'OK '} 放射点 ${Object.keys(rad).length} 件（render/wow.js と通常版の calendar-pages.js）`);
+  return ng + ng2;
 }
 
 /** 軽量版の英語の画面（en/index.html）の文字（要素の中の文字と aria-label・placeholder・label）を 1 行ずつ。

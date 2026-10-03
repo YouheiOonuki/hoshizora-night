@@ -44,6 +44,7 @@
 <div class="corner"><button id="helpBtn" type="button" class="round" aria-label="つかいかた">?</button></div>
 <ul id="tonight" class="tonight"></ul>
 <div id="quizBar" class="quizbar" role="status" hidden><span class="qt"><span class="qn" id="qNum"></span><span id="qText"></span></span><button id="qHint" type="button"><span class="ad">ヒント</span><span class="kd">ヒント</span></button></div>
+<div id="eventBar" class="quizbar evbar" role="status" hidden><span class="qt" id="evText"></span><button id="evStop" type="button"><span class="ad">止める</span><span class="kd">とめる</span></button></div>
 <div class="bottom">
   <div class="row">
     <button id="play" type="button" class="icon" aria-label="止める"><svg class="i-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg><svg class="i-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg></button>
@@ -57,6 +58,7 @@
     <button id="dsoBtn" type="button" class="wow" aria-pressed="false" aria-controls="dsoPanel"><span class="ad">星雲・星団</span><span class="kd">せいうん</span></button>
     <button id="trailBtn" type="button" class="wow" aria-pressed="false"><span class="ad">星の軌跡</span><span class="kd">ほしの きせき</span></button>
     <button id="scopeBtn" type="button" class="wow" aria-pressed="false"><span class="ad">双眼鏡</span><span class="kd">そうがんきょう</span></button>
+    <button id="eventBtn" type="button" class="wow" aria-pressed="false" aria-controls="eventPanel"><span class="ad">天文イベント</span><span class="kd">てんもん イベント</span></button>
     <button id="lines" type="button" aria-pressed="true"><span class="ad">星座線</span><span class="kd">せいざの せん</span></button>
     <button id="names" type="button" aria-pressed="true"><span class="ad">名まえ</span><span class="kd">なまえ</span></button>
     <button id="timeBtn" type="button" aria-pressed="false" aria-controls="timePanel"><span class="ad">時間たび</span><span class="kd">じかんたび</span></button>
@@ -85,6 +87,10 @@
 <div id="dsoPanel" class="panel" role="group" aria-label="星雲・星団" hidden>
   <div class="panel-top"><h2><span class="ad">ズームする天体</span><span class="kd">ズームする てんたい</span></h2><button type="button" class="icon close" data-close="dsoPanel" aria-label="閉じる">×</button></div>
   <div id="dsoList" class="list"></div>
+</div>
+<div id="eventPanel" class="panel" role="group" aria-label="天文イベント" hidden>
+  <div class="panel-top"><h2><span class="ad">イベントを早回しで見る</span><span class="kd">はやまわしで みる</span></h2><button type="button" class="icon close" data-close="eventPanel" aria-label="閉じる">×</button></div>
+  <div id="eventList" class="evlist"></div>
 </div>
 <div id="places" class="panel" role="dialog" aria-label="場所" hidden>
   <div class="panel-top"><h2><span class="ad">どこの空を見る？</span><span class="kd">どこの そらを みる？</span></h2><button id="closePlaces" type="button" class="icon close" aria-label="閉じる">×</button></div>
