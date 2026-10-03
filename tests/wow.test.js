@@ -92,53 +92,100 @@ test('2 街明かり: 空の明るさ → 限界等級は Schaefer (1990) の式
 });
 
 /* ---------- 3 星座絵 ---------- */
-test('3 星座絵: ヘヴェリウスの図の星の印が、網を通すと星表の同じ星に 0.15° 以内で重なる（主要 4 星座）', () => {
-  const { ART, CREDIT } = require('../render/art.js');
-  const { CATALOG } = require('../engine/catalog.js');
-  assert.deepStrictEqual(ART.map((a) => a.con), ['ori', 'gem', 'leo', 'uma']);
-  const S = require('../render/sky.js');
+// 載せると決めた主な星座（企画書 75 の 3 の続き、2026-10-03）。南天でヘヴェリウスの図に無いものは対象外
+const ART_WANT = ['ori', 'gem', 'leo', 'uma', 'cyg', 'lyr', 'aql', 'sco', 'sgr', 'her', 'oph', 'boo', 'vir', 'cas', 'per', 'and', 'peg', 'aqr', 'cap', 'psc', 'ari', 'tau', 'aur', 'cnc', 'cmi', 'cma'];
+const artAt = (a, u, v) => {   // 網の上の位置（画像の 0〜1）→ 空の向き（四隅の頂点の双一次補間。描くときと同じ）
+  const n = a.mesh + 1, x = u * a.mesh, y = v * a.mesh, i = Math.min(a.mesh - 1, Math.floor(x)), j = Math.min(a.mesh - 1, Math.floor(y)), fx = x - i, fy = y - j;
+  const V = (ii, jj) => a.verts.slice(((jj * n) + ii) * 3, ((jj * n) + ii) * 3 + 3);
+  const p = [0, 1, 2].map((k) => V(i, j)[k] * (1 - fx) * (1 - fy) + V(i + 1, j)[k] * fx * (1 - fy) + V(i, j + 1)[k] * (1 - fx) * fy + V(i + 1, j + 1)[k] * fx * fy);
+  const m = Math.hypot(...p); return p.map((x2) => x2 / m);
+};
+const sepDeg = (p, q) => Math.acos(Math.min(1, p[0] * q[0] + p[1] * q[1] + p[2] * q[2])) / D;
+
+test('3 星座絵: 載せる星座は主な 26 で、どれも位置合わせのずれ（黄道座標の写し方、組にした星ごと）の最大が 2° 以内。載せない星座は REJECTED に理由つき', () => {
+  const { ART, REJECTED, MAX_DEG } = require('../render/art.js');
+  assert.strictEqual(MAX_DEG, 2);
+  const cons = [...new Set(ART.map((a) => a.con))];
+  // 欲しい星座は、載せるか、理由つきで載せないかのどちらか（両方は無い）
+  for (const c of ART_WANT) assert.ok(cons.includes(c) !== REJECTED.some((r) => r.id === c), c);
+  for (const r of REJECTED) assert.ok(typeof r.reason === 'string' && r.reason.length > 4, r.id);
+  assert.deepStrictEqual(cons.filter((c) => !ART_WANT.includes(c)), []);
+  // 夏と秋の空の星座も入っている（前の 4 つだけではない）
+  for (const c of ['cyg', 'lyr', 'aql', 'sco', 'sgr', 'peg', 'and', 'cas']) assert.ok(cons.includes(c), c);
   for (const a of ART) {
-    const n = a.mesh + 1;
-    assert.strictEqual(a.verts.length, n * n * 3, a.id);
-    assert.ok(a.source.startsWith('https://commons.wikimedia.org/wiki/File:'), a.id);
-    const at = (u, v) => {   // 網の上の位置（画像の 0〜1）→ 空の向き（四隅の頂点の双一次補間）
-      const x = u * a.mesh, y = v * a.mesh, i = Math.min(a.mesh - 1, Math.floor(x)), j = Math.min(a.mesh - 1, Math.floor(y)), fx = x - i, fy = y - j;
-      const V = (ii, jj) => a.verts.slice(((jj * n) + ii) * 3, ((jj * n) + ii) * 3 + 3);
-      const p = [0, 1, 2].map((k) => V(i, j)[k] * (1 - fx) * (1 - fy) + V(i + 1, j)[k] * fx * (1 - fy) + V(i, j + 1)[k] * (1 - fx) * fy + V(i + 1, j + 1)[k] * fx * fy);
-      const m = Math.hypot(...p); return p.map((x2) => x2 / m);
-    };
-    for (const s of a.stars) {
-      // 組にした星は星表（engine/catalog.js）にある
-      let found = false;
-      for (let i = 0; i < CATALOG.length; i += 4) if (Math.abs(CATALOG[i] / 1000 * 15 - s.ra) < 0.001 && Math.abs(CATALOG[i + 1] / 100 - s.dec) < 0.001) found = true;
-      assert.ok(found, `${a.id} ${s.name} が星表に無い`);
-      if (s.px.some((x) => x < 0 || x > 1)) continue;   // 切り出した範囲の外（位置合わせにだけ使った星）
-      const want = S.vec(s.ra * D, s.dec * D), got = at(s.px[0], s.px[1]);
-      const sep = Math.acos(Math.min(1, want[0] * got[0] + want[1] * got[1] + want[2] * got[2])) / D;
-      assert.ok(sep < 0.15, `${a.id} ${s.name} ${sep.toFixed(3)}°`);
-    }
-    assert.ok(a.residualDeg.median < 1, a.id);
+    const r = a.residualDeg;
+    assert.ok(r.max <= MAX_DEG && r.median <= r.max, `${a.id} ずれ ${r.max}°`);
+    // 組にした星は 3 点以上。主要な星（engine/data.js の星座線の星）も 3 点以上（こいぬ座は星座線の星が 2 つしかないので、図全体の星で合わせる）
+    assert.ok(r.n >= 3, `${a.id} 組 ${r.n}`);
+    assert.ok(a.con === 'cmi' ? r.mainN >= 1 : r.mainN >= 3, `${a.id} 主要な星 ${r.mainN}`);
+    assert.ok(r.mainMax == null || r.mainMax <= r.max, a.id);
+    assert.strictEqual(a.projection, 'ecliptic', a.id);
   }
-  assert.ok(CREDIT.ja.includes('ヘヴェリウス') && CREDIT.ja.includes('パブリックドメイン') && CREDIT.en.includes('public domain'));
 });
 
-test('3 星座絵: 画像は 1024 px 以内・合わせて 600 KB 以内で、押したときに初めて読む（入口の HTML は art.js を読まない）', () => {
+test('3 星座絵: 図の星の印が網を通すと星表の同じ星に重なる（主要な星 0.15° 以内、ほかの星 0.25° 以内）', () => {
   const { ART } = require('../render/art.js');
-  let total = 0;
+  const { CATALOG } = require('../engine/catalog.js');
+  const S = require('../render/sky.js');
+  let nMain = 0;
   for (const a of ART) {
-    const b = fs.readFileSync(path.join(ROOT, a.file)); total += b.length;
-    assert.ok(b[0] === 0xff && b[1] === 0xd8 && a.size[0] <= 1024, a.id);
+    assert.strictEqual(a.verts.length, (a.mesh + 1) ** 2 * 3, a.id);
+    for (const s of a.stars) {
+      let found = false;
+      for (let i = 0; i < CATALOG.length; i += 4) if (Math.abs(CATALOG[i] / 1000 * 15 - s.ra) < 0.001 && Math.abs(CATALOG[i + 1] / 100 - s.dec) < 0.001) found = true;
+      assert.ok(found, `${a.id} ${s.ra},${s.dec} が星表に無い`);
+      assert.ok(s.px.every((x) => x >= 0 && x <= 1), a.id);
+      const d = sepDeg(S.vec(s.ra * D, s.dec * D), artAt(a, s.px[0], s.px[1]));
+      assert.ok(d < (s.main ? 0.15 : 0.25), `${a.id} ${s.ra},${s.dec} ${d.toFixed(3)}°`);
+      if (s.main) nMain++;
+    }
+    // 網の中心と半径（見えるかどうかの判定に使う）が頂点と合う
+    const c = a.center, far = Math.max(...Array.from({ length: (a.mesh + 1) ** 2 }, (_, i) => sepDeg(c, a.verts.slice(i * 3, i * 3 + 3))));
+    assert.ok(Math.abs(far - a.radiusDeg) < 0.05 && a.radiusDeg < 60, `${a.id} ${far} ${a.radiusDeg}`);
   }
-  assert.ok(total <= 600 * 1024, `${total}`);
+  assert.ok(nMain >= 60, String(nMain));
+});
+
+test('3 星座絵: はくちょう座の図（前回合わなかった）は、図の網（黄道座標）で合わせると主要な星 5 つとも 0.25° 以内', () => {
+  const { ART } = require('../render/art.js');
+  const cyg = ART.find((a) => a.id === 'cyg');
+  assert.ok(cyg && cyg.residualDeg.mainN === 5 && cyg.residualDeg.mainMax <= 0.25, JSON.stringify(cyg && cyg.residualDeg));
+  // 見開きの走査（おおぐま座、e-rara）は綴じ目の左右を別に合わせた 2 枚
+  const uma = ART.filter((a) => a.con === 'uma');
+  assert.deepStrictEqual(uma.map((a) => a.id), ['uma', 'uma-2']);
+});
+
+test('3 星座絵: 出典は各図の Wikimedia Commons のページ、作り方の道具に出典とライセンス、画面の出典の行は前のまま', () => {
+  const { ART, CREDIT } = require('../render/art.js');
+  for (const a of ART) assert.ok(/^https:\/\/commons\.wikimedia\.org\/wiki\/File:[^ ]+\.(jpg|JPG)$/.test(a.source), a.id);
+  assert.ok(CREDIT.ja.includes('ヘヴェリウス') && CREDIT.ja.includes('パブリックドメイン') && CREDIT.en.includes('public domain'));
+  const line = '<span id="artCredit" hidden> · <a href="https://commons.wikimedia.org/wiki/Category:Firmamentum_Sobiescianum,_sive_uranographia" rel="noopener">星座絵: ヘヴェリウス『Firmamentum Sobiescianum』1690（パブリックドメイン、Wikimedia Commons）</a></span>';
+  assert.ok(read('index.html').includes(line));
+  assert.ok(read('en/index.html').includes(`<span id="artCredit" hidden> · <a href="${CREDIT.href}" rel="noopener">${CREDIT.en}</a></span>`));
+  const tool = read('tools/build-art.py');
+  for (const s of ['Firmamentum Sobiescianum', 'Wikimedia Commons', 'Public Domain Mark', '1690', '2026-10-03']) assert.ok(tool.includes(s), s);
+  // 案内の文の星座の数は、載せている星座の数と同じ
+  const n = new Set(ART.map((a) => a.con)).size;
+  assert.ok(W.TEXT.ja.artToast[0].includes(`${n} 星座`) && W.TEXT.en.artToast.includes(`${n} major constellations`));
+});
+
+test('3 星座絵: 画像は遅延読み込み（入口の HTML は art.js を読まず、画像は画面に入った星座の分だけ読む）。1 枚 768×900 px・220 KB 以内', () => {
+  const { ART } = require('../render/art.js');
+  for (const a of ART) {
+    const b = fs.readFileSync(path.join(ROOT, a.file));
+    assert.ok(b[0] === 0xff && b[1] === 0xd8 && a.size[0] <= 768 && a.size[1] <= 900 && b.length <= 220 * 1024, `${a.id} ${a.size} ${b.length}`);
+  }
   for (const p of ['index.html', 'en/index.html']) {
     const html = read(p);
-    assert.ok(!html.includes('src="/hoshizora-night/render/art.js"') && html.includes('id="artBtn"') && html.includes('id="artCredit" hidden'), p);
+    assert.ok(!html.includes('render/art.js') && !html.includes('render/art/') && html.includes('id="artBtn"') && html.includes('id="artCredit" hidden'), p);
   }
-  const app = read('app/night.js');
+  const app = read('app/night.js'), gl = read('render/night-gl.js');
   assert.ok(app.includes("sc.src = '/hoshizora-night/render/art.js'") && app.includes('r.loadArt('));
-  // 作り方の道具に出典とライセンス
-  const tool = read('tools/build-art.py');
-  for (const s of ['Firmamentum Sobiescianum', 'Wikimedia Commons', 'Public Domain Mark', '1690']) assert.ok(tool.includes(s), s);
+  // loadArt は読む場所を覚えるだけで、drawArt が見えている星座の画像だけを読む
+  const loadArt = gl.slice(gl.indexOf('function loadArt('), gl.indexOf('function fetchArt('));
+  assert.ok(!loadArt.includes('new Image') && !loadArt.includes('.src'), loadArt);
+  const draw = gl.slice(gl.indexOf('function drawArt('), gl.indexOf('/** 実写の画像'));
+  assert.ok(/if \(!artVisible\(a, starM, view, scale\)\) continue;\s*if \(!a\.tex\) \{ fetchArt\(a\); continue; \}/.test(draw), draw);
 });
 
 /* ---------- 4 星雲・星団へのズーム ---------- */

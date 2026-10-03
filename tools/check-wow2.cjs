@@ -98,29 +98,37 @@ const WINTER = '#35.69,139.69,1800021600';  // 2027-01-15 23:00 JST 東京（冬
     R.features[2] = F;
   }
 
-  /* 3 星座絵: 押すまで画像を読まない → 押すと 4 枚読んで重なる。出典の行が出る */
+  /* 3 星座絵: 押すまで何も読まない → 押すと網（art.js）と、画面に入った星座の画像だけを読む。季節ごとにスマホ・PC。出典の行が出る */
   if (want(3)) {
-    const F = { shots: [] };
-    for (const [dev, tag, url] of [[PHONE, 'phone', `?probe=off&view=175,40${WINTER}`], [PC, 'pc', `?probe=off&view=170,38${WINTER}`]]) {
-      const ctx = await ctxOf(dev, { reducedMotion: 'reduce' }), p = await ctx.newPage(), reqs = [], errors = [];
-      p.on('request', (q) => reqs.push(q.url())); p.on('pageerror', (e) => errors.push(e.message));
-      await p.goto(base + url); await ready(p); await p.waitForTimeout(600);
-      const before = reqs.filter((u) => /render\/art/.test(u)).length;
-      await p.click('#artBtn');
-      await p.waitForFunction(() => { const s = window.__night.artState(); return s.ori && s.gem && s.leo && s.uma; }, null, { timeout: 15000 });
-      await p.waitForTimeout(1200);
-      F[tag] = { before, after: reqs.filter((u) => /render\/art/.test(u)).length, credit: await p.isVisible('#artCredit'), errors };
-      F.shots.push(await shot(p, `3-art-${tag}-winter.png`));
-      if (tag === 'pc') {   // 春の空（しし座・おおぐま座）
-        await p.evaluate(() => { location.hash = '#35.69,139.69,1807875000'; }); await p.reload(); await ready(p);
-        await p.click('#artBtn'); await p.waitForFunction(() => window.__night.artState().leo, null, { timeout: 15000 });
-        await p.evaluate(() => { window.__night.view.az = 200 * Math.PI / 180; window.__night.view.alt = 50 * Math.PI / 180; });
-        await p.waitForTimeout(1200);
-        F.shots.push(await shot(p, '3-art-pc-spring.png'));
+    const F = { shots: [], seasons: {} };
+    const at = (iso) => Math.round(Date.parse(iso) / 1000);
+    const SEASONS = [   // 東京、夜 21 時（JST）ごろ。view = 方位,高度（向く方向）
+      ['spring', at('2027-04-15T12:00:00Z'), '190,55'],   // しし・おとめ・うしかい・おおぐま
+      ['summer', at('2027-08-10T12:00:00Z'), '150,50'],   // さそり・いて・へびつかい・わし・はくちょう・こと・ヘルクレス
+      ['autumn', at('2026-10-15T12:00:00Z'), '120,60'],   // ペガスス・アンドロメダ・みずがめ・やぎ・うお・カシオペヤ
+      ['winter', 1800021600, '175,40'],                   // オリオン・おうし・ふたご・おおいぬ・こいぬ
+    ];
+    const total = require('../render/art.js').ART.length;
+    for (const [season, t, view] of SEASONS) {
+      const S = (F.seasons[season] = {});
+      for (const [dev, tag] of [[PHONE, 'phone'], [PC, 'pc']]) {
+        const ctx = await ctxOf(dev, { reducedMotion: 'reduce' }), p = await ctx.newPage(), reqs = [], errors = [];
+        p.on('request', (q) => reqs.push(q.url())); p.on('pageerror', (e) => errors.push(e.message));
+        await p.goto(base + `?probe=off&view=${view}#35.69,139.69,${t}`); await ready(p); await p.waitForTimeout(600);
+        const before = reqs.filter((u) => /render\/art/.test(u)).length;
+        await p.click('#artBtn');
+        await p.waitForFunction(() => Object.values(window.__night.artState()).some(Boolean), null, { timeout: 15000 });
+        await p.waitForTimeout(1500);
+        const imgs = [...new Set(reqs.filter((u) => /render\/art\/[a-z0-9-]+\.jpg/.test(u)).map((u) => u.match(/art\/([a-z0-9-]+)\.jpg/)[1]))];
+        const loaded = Object.entries(await p.evaluate(() => window.__night.artState())).filter(([, v]) => v).map(([k]) => k);
+        S[tag] = { before, js: reqs.some((u) => /render\/art\.js/.test(u)), imgs, loaded, credit: await p.isVisible('#artCredit'), errors };
+        F.shots.push(await shot(p, `art-${season}-${tag}.png`));
+        await ctx.close();
       }
-      await ctx.close();
     }
-    F.ok = F.phone.before === 0 && F.phone.after >= 5 && F.phone.credit && !F.phone.errors.length && F.pc.before === 0 && !F.pc.errors.length;
+    const all = Object.values(F.seasons).flatMap((x) => [x.phone, x.pc]);
+    F.total = total;
+    F.ok = all.every((x) => x.before === 0 && x.js && x.imgs.length >= 1 && x.imgs.length < total && x.credit && !x.errors.length && x.loaded.length >= 1);
     R.features[3] = F;
   }
 

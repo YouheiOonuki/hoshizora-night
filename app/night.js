@@ -789,7 +789,7 @@
   lightSlider.addEventListener('input', () => { lightU = +lightSlider.value / WOW.LIGHT.steps; lightText(); dirty = true; });
 
   /* ---------------- 3 星座絵（企画書 75）: ヘヴェリウス『Firmamentum Sobiescianum』（1690）を淡く重ねる ----------------
-     網と画像（render/art.js・render/art/*.jpg）は押したときに初めて読む（初めの読み込みを重くしない） */
+     網（render/art.js）は押したときに初めて読み、画像（render/art/*.jpg）は画面に入った星座の分だけ読む（render/night-gl.js の drawArt） */
   let showArt = false, artLoaded = false;
   function loadArtData(done) {
     if (window.NightArt) { done(); return; }
@@ -799,7 +799,7 @@
     showArt = !showArt; setPressed('artBtn', showArt); $('artCredit').hidden = !showArt; dirty = true;
     if (showArt) {
       toast(wt('artToast'));
-      if (!artLoaded) { artLoaded = true; loadArtData(() => { r.setArt(window.NightArt.ART); r.loadArt('/hoshizora-night/', () => { dirty = true; texSettle = performance.now() + 900; }); }); }
+      if (!artLoaded) { artLoaded = true; loadArtData(() => { r.setArt(window.NightArt.ART); r.loadArt('/hoshizora-night/', () => { dirty = true; texSettle = performance.now() + 900; }); dirty = true; }); }
     }
     window.__night.art = showArt;
   });
