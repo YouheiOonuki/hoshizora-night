@@ -108,7 +108,7 @@ test('初回の読み込み: JS は gzip 後 600 KB 以内、画像は 1 MB 以�
 });
 
 test('外向きの要求を出すコードが無い（fetch・XMLHttpRequest・sendBeacon・WebSocket・EventSource）', () => {
-  for (const f of ['app/night.js', 'app/poster.js', 'render/poster.js', 'render/look.js', 'render/info.js', 'render/night-gl.js', 'render/sky.js', 'render/gate.js', 'render/prefectures.js', 'render/catalog-extra.js']) {
+  for (const f of ['app/night.js', 'app/poster.js', 'render/poster.js', 'render/look.js', 'render/wow.js', 'render/wmm.js', 'render/info.js', 'render/night-gl.js', 'render/sky.js', 'render/gate.js', 'render/prefectures.js', 'render/catalog-extra.js']) {
     const src = read(f).replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
     assert.ok(!/\bfetch\s*\(|XMLHttpRequest|sendBeacon|WebSocket|EventSource|https?:\/\//.test(src), f);
   }
@@ -119,13 +119,14 @@ test('通常版と相互リンク: 「軽い版」は日本語 → /hoshizora-sa
   assert.ok(read('en/index.html').includes('<a id="light" href="/hoshizora-sanpo/en/">Light version</a>'));
 });
 
-test('英語の画面の文字は TEXT.en と出典の行のものだけ（企画書 74 で 20 語の上限は外した。文の出どころは tests/look.test.js）', () => {
+test('英語の画面の文字は TEXT.en・企画書 75 の NightWow.TEXT.en（オーナー承認待ち）と出典の行のものだけ（文の出どころは tests/look.test.js・tests/wow.test.js）', () => {
   const html = read('en/index.html');
   const body = html.slice(html.indexOf('<body')).replace(/<script[\s\S]*?<\/script>/g, '').replace(/<svg[\s\S]*?<\/svg>/g, '');
   const texts = [...body.matchAll(/>([^<]+)</g)].map((m) => m[1].trim()).filter((s) => s && s !== '·' && s !== '×' && s !== '?');
   const attrs = [...body.matchAll(/aria-label="([^"]+)"/g)].map((m) => m[1]);
   const flat = (v) => (v && typeof v === 'object') ? Object.values(v).flatMap(flat) : [v];
-  const allowed = new Set([...flat(L.TEXT.en), '日本語', 'Web Planetarium', L.CREDITS.milky.en, L.CREDITS.moon.en]);
+  const W = require('../render/wow.js');
+  const allowed = new Set([...flat(L.TEXT.en), ...flat(W.TEXT.en), require('../render/art.js').CREDIT.en, '日本語', 'Web Planetarium', L.CREDITS.milky.en, L.CREDITS.moon.en]);
   for (const s of [...texts, ...attrs]) assert.ok(allowed.has(s), `TEXT.en に無い文字列: ${s}`);
 });
 

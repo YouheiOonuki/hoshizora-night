@@ -33,6 +33,7 @@
 <body class="app">
 <canvas id="sky" tabindex="0" aria-label="Night sky. Drag to look around, pinch to zoom, tap a constellation for notes. Arrow keys also work."></canvas>
 <div id="labels" class="labels" aria-hidden="true"></div>
+<div id="scopeMask" class="scopemask" aria-hidden="true" hidden></div>
 <div id="dirs" class="dirs" aria-hidden="true"><span class="main">N</span><span class="sub">NE</span><span class="main">E</span><span class="sub">SE</span><span class="main">S</span><span class="sub">SW</span><span class="main">W</span><span class="sub">NW</span></div>
 <header class="hud">
   <p class="clock"><span id="date"></span><span id="time"></span></p>
@@ -43,6 +44,7 @@
 <div class="corner"><button id="helpBtn" type="button" class="round" aria-label="How to use">?</button></div>
 <ul id="tonight" class="tonight"></ul>
 <div id="quizBar" class="quizbar" role="status" hidden><span class="qt"><span class="qn" id="qNum"></span><span id="qText"></span></span><button id="qHint" type="button">Hint</button></div>
+<div id="eventBar" class="quizbar evbar" role="status" hidden><span class="qt" id="evText"></span><button id="evStop" type="button">Stop</button></div>
 <div class="bottom">
   <div class="row">
     <button id="play" type="button" class="icon" aria-label="Pause"><svg class="i-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg><svg class="i-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg></button>
@@ -50,6 +52,13 @@
     <button id="now" type="button">Now</button>
   </div>
   <nav id="dock" class="dock" aria-label="Menu">
+    <button id="gyro" type="button" class="wow" aria-pressed="false" hidden>Gyro</button>
+    <button id="lightBtn" type="button" class="wow" aria-pressed="false" aria-controls="lightPanel">City lights</button>
+    <button id="artBtn" type="button" class="wow" aria-pressed="false">Constellation art</button>
+    <button id="dsoBtn" type="button" class="wow" aria-pressed="false" aria-controls="dsoPanel">Nebulae</button>
+    <button id="trailBtn" type="button" class="wow" aria-pressed="false">Star trails</button>
+    <button id="scopeBtn" type="button" class="wow" aria-pressed="false">Binoculars</button>
+    <button id="eventBtn" type="button" class="wow" aria-pressed="false" aria-controls="eventPanel">Sky events</button>
     <button id="lines" type="button" aria-pressed="true">Lines</button>
     <button id="names" type="button" aria-pressed="true">Names</button>
     <button id="timeBtn" type="button" aria-pressed="false" aria-controls="timePanel">Time</button>
@@ -61,12 +70,27 @@
     <button id="share" type="button">Share</button>
     <a id="light" href="/hoshizora-sanpo/en/">Light version</a>
   </nav>
-  <p class="credit"><a href="https://www.eso.org/public/images/eso0932a/" rel="noopener">Milky Way: ESO/S. Brunier</a> · <a href="https://svs.gsfc.nasa.gov/4720/" rel="noopener">Moon: NASA SVS</a></p>
+  <p class="credit"><a href="https://www.eso.org/public/images/eso0932a/" rel="noopener">Milky Way: ESO/S. Brunier</a> · <a href="https://svs.gsfc.nasa.gov/4720/" rel="noopener">Moon: NASA SVS</a><span id="hipCredit" hidden> · <a href="https://www.cosmos.esa.int/web/hipparcos/catalogues" rel="noopener">Faint stars: Hipparcos Catalogue (Credit: ESA, CC BY-NC 3.0 IGO)</a></span><span id="artCredit" hidden> · <a href="https://commons.wikimedia.org/wiki/Category:Firmamentum_Sobiescianum,_sive_uranographia" rel="noopener">Constellation art: Hevelius, Firmamentum Sobiescianum (1690), public domain, via Wikimedia Commons</a></span></p>
 </div>
 <div id="timePanel" class="panel" role="group" aria-label="Time travel" hidden>
   <div class="panel-top"><span id="tpNow" class="tpnow"></span><button type="button" class="icon close" data-close="timePanel" aria-label="Close">×</button></div>
   <div class="tprow"><button type="button" data-month="-1">−1 month</button><button type="button" data-d="-1">−1 day</button><button type="button" data-d="1">+1 day</button><button type="button" data-month="1">+1 month</button></div>
   <div class="tprow"><button type="button" id="tpNowBtn" class="gold">Back to now</button><button type="button" id="tpPlay" aria-pressed="false"></button><button type="button" id="tpSpeed"></button></div>
+</div>
+<div id="lightPanel" class="panel" role="group" aria-label="City lights" hidden>
+  <div class="panel-top"><h2>City lights</h2><button type="button" class="icon close" data-close="lightPanel" aria-label="Close">×</button></div>
+  <input id="lightSlider" type="range" min="0" max="20" step="1" value="0" aria-label="City lights">
+  <div class="lightscale"><span>Countryside</span><span>Suburbs</span><span>City</span></div>
+  <p id="lightRead" class="tpnow"></p>
+  <p class="note">Limiting magnitude from Schaefer (1990). The Milky Way and sky color are approximate.</p>
+</div>
+<div id="dsoPanel" class="panel" role="group" aria-label="Nebulae" hidden>
+  <div class="panel-top"><h2>Zoom to</h2><button type="button" class="icon close" data-close="dsoPanel" aria-label="Close">×</button></div>
+  <div id="dsoList" class="list"></div>
+</div>
+<div id="eventPanel" class="panel" role="group" aria-label="Sky events" hidden>
+  <div class="panel-top"><h2>Watch an event in fast motion</h2><button type="button" class="icon close" data-close="eventPanel" aria-label="Close">×</button></div>
+  <div id="eventList" class="evlist"></div>
 </div>
 <div id="places" class="panel" role="dialog" aria-label="Place" hidden>
   <div class="panel-top"><h2>Whose sky?</h2><button id="closePlaces" type="button" class="icon close" aria-label="Close">×</button></div>
@@ -102,6 +126,9 @@
 <script>window.NightEvents = window.module.exports; delete window.module;</script>
 <script src="/hoshizora-night/render/sky.js"></script>
 <script src="/hoshizora-night/render/look.js"></script>
+<script src="/hoshizora-night/render/wmm.js"></script>
+<script src="/hoshizora-night/render/wow.js"></script>
+<script src="/hoshizora-night/render/dso.js"></script>
 <script src="/hoshizora-night/render/info.js"></script>
 <script src="/hoshizora-night/render/catalog-extra.js"></script>
 <script src="/hoshizora-night/render/prefectures.js"></script>

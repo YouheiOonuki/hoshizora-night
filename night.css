@@ -39,6 +39,9 @@ body:not(.kids) .kd, body.kids .ad { display: none !important; }
 .dirs .main { font-size: 15px; font-weight: 600; color: rgba(240, 200, 110, .9); }
 .dirs .sub { font-size: 11px; color: rgba(154, 165, 196, .8); }
 body.kids .dirs .sub { display: none; }
+/* 双眼鏡・望遠鏡の円い視野（企画書 75 の 6）。--r は app が画面の短い辺 × 0.45 を入れる */
+.scopemask { position: fixed; inset: 0; pointer-events: none; z-index: 1;
+  background: radial-gradient(circle at 50% 50%, transparent calc(var(--r, 180px) - 1px), rgba(120, 140, 190, .45) var(--r, 180px), rgba(1, 2, 6, .96) calc(var(--r, 180px) + 2px)); }
 /* 空の上の名前（星座・星・惑星・大三角） */
 .labels span { position: fixed; left: 0; top: 0; pointer-events: none; white-space: nowrap; text-shadow: 0 0 6px #000, 0 1px 3px #000; will-change: transform; }
 .labels .con { font-family: var(--serif); font-size: 13px; letter-spacing: .14em; color: rgba(240, 200, 110, .66); }
@@ -61,6 +64,7 @@ body.kids .labels .con { font-size: 15px; }
   mask-image: linear-gradient(90deg, #000 90%, transparent); -webkit-mask-image: linear-gradient(90deg, #000 90%, transparent); }
 .dock::-webkit-scrollbar { display: none; }
 .dock [aria-pressed="true"] { border-color: rgba(240, 200, 110, .75); color: #ffe2a6; background: rgba(120, 90, 30, .28); }
+.dock .wow::before { content: "✦"; margin-right: 6px; color: var(--gold); opacity: .8; }   /* フル版だけの機能（企画書 75） */
 .dock #light { color: var(--dim); border-color: transparent; background: transparent; padding: 0 8px; font-size: 13px; }
 .credit { margin: 0; font-size: 12px; color: var(--dim); text-align: right; }
 .credit a { color: var(--dim); }
@@ -87,6 +91,15 @@ body.kids .labels .con { font-size: 15px; }
 .locform { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; margin-top: 12px; }
 .locform label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--dim); flex: 1 1 140px; }
 .locform input { font: inherit; font-size: 16px; color: var(--ink); background: rgba(255, 255, 255, .06); border: 1px solid var(--line); border-radius: 8px; padding: 8px; }
+#lightSlider { width: 100%; accent-color: #f0c86e; height: 32px; margin: 4px 0 0; }   /* 街明かり（企画書 75 の 2） */
+.lightscale { display: flex; justify-content: space-between; font-size: 12px; color: var(--dim); margin-bottom: 8px; }
+.dso-credit { font-size: 12px; color: var(--dim); line-height: 1.7; margin-top: 10px; }   /* 星雲の実写の出典（企画書 75 の 4） */
+.dso-credit a { color: #9fc3ff; }
+.evlist { display: grid; gap: 10px; }   /* 天文イベント（企画書 75 の 7） */
+.evitem { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: grid; gap: 6px; }
+.evitem b { font-family: var(--serif); color: var(--gold); font-weight: 600; letter-spacing: .04em; }
+.evitem small { color: var(--dim); font-size: 12px; line-height: 1.6; }
+.evitem button { justify-self: start; border-color: rgba(240, 200, 110, .7); color: var(--gold); }
 .note { margin: 12px 0 0; font-size: 12px; color: var(--dim); }
 .links { margin: 14px 0 0; font-size: 12px; line-height: 1.9; color: var(--dim); }
 .sheet { padding-top: 18px; }

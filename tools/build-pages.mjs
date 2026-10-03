@@ -11,6 +11,8 @@ import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const L = require('../render/look.js');
+const W = require('../render/wow.js');   // 企画書 75（フル版だけの機能）の文字
+const ART_CREDIT = require('../render/art.js').CREDIT;   // 星座絵の出典（企画書 75 の 3。art.js は画面では押したときに初めて読む）
 const OG = JSON.parse(fs.readFileSync(path.join(ROOT, 'og', 'og.json'), 'utf8'));
 
 export const SITE = 'https://yorozu-craft.com';
@@ -42,7 +44,7 @@ const PLAY_SVG = '<svg class="i-play" viewBox="0 0 24 24" aria-hidden="true"><pa
 
 /** 1 ページ。lang: ja/en、month: null（入口）か 1〜12 */
 export function page(lang, month) {
-  const en = lang === 'en', T = L.TEXT[lang], M = META[lang];
+  const en = lang === 'en', T = L.TEXT[lang], M = META[lang], WT = W.TEXT[lang];
   const self = `${BASE}${en ? 'en/' : ''}${month ? `m/${String(month).padStart(2, '0')}/` : ''}`;
   const canonical = `${BASE}${en ? 'en/' : ''}`;
   const og = month ? OG.months[month - 1] : OG.months[OG.entryMonth - 1];
@@ -88,6 +90,7 @@ export function page(lang, month) {
 <body class="app">
 <canvas id="sky" tabindex="0" aria-label="${T.skyLabel}"></canvas>
 <div id="labels" class="labels" aria-hidden="true"></div>
+<div id="scopeMask" class="scopemask" aria-hidden="true" hidden></div>
 <div id="dirs" class="dirs" aria-hidden="true">${T.dirs.map((d, i) => `<span class="${i % 2 ? 'sub' : 'main'}">${d}</span>`).join('')}</div>
 <header class="hud">
   <p class="clock"><span id="date"></span><span id="time"></span></p>
@@ -98,6 +101,7 @@ export function page(lang, month) {
 <div class="corner"><button id="helpBtn" type="button" class="round" aria-label="${T.helpLabel}">?</button></div>
 <ul id="tonight" class="tonight"></ul>
 <div id="quizBar" class="quizbar" role="status" hidden><span class="qt"><span class="qn" id="qNum"></span><span id="qText"></span></span><button id="qHint" type="button">${lbl(T.hint)}</button></div>
+<div id="eventBar" class="quizbar evbar" role="status" hidden><span class="qt" id="evText"></span><button id="evStop" type="button">${lbl(WT.evStop)}</button></div>
 <div class="bottom">
   <div class="row">
     <button id="play" type="button" class="icon" aria-label="${T.pause}">${PLAY_SVG}</button>
@@ -105,6 +109,13 @@ export function page(lang, month) {
     <button id="now" type="button">${T.now}</button>
   </div>
   <nav id="dock" class="dock" aria-label="${T.menu}">
+    <button id="gyro" type="button" class="wow" aria-pressed="false" hidden>${lbl(WT.bGyro)}</button>
+    <button id="lightBtn" type="button" class="wow" aria-pressed="false" aria-controls="lightPanel">${lbl(WT.bLight)}</button>
+    <button id="artBtn" type="button" class="wow" aria-pressed="false">${lbl(WT.bArt)}</button>
+    <button id="dsoBtn" type="button" class="wow" aria-pressed="false" aria-controls="dsoPanel">${lbl(WT.bDso)}</button>
+    <button id="trailBtn" type="button" class="wow" aria-pressed="false">${lbl(WT.bTrail)}</button>
+    <button id="scopeBtn" type="button" class="wow" aria-pressed="false">${lbl(WT.bScope)}</button>
+    <button id="eventBtn" type="button" class="wow" aria-pressed="false" aria-controls="eventPanel">${lbl(WT.bEvent)}</button>
     <button id="lines" type="button" aria-pressed="true">${lbl(T.bLines)}</button>
     <button id="names" type="button" aria-pressed="true">${lbl(T.bNames)}</button>
     <button id="timeBtn" type="button" aria-pressed="false" aria-controls="timePanel">${lbl(T.bTime)}</button>
@@ -116,12 +127,27 @@ export function page(lang, month) {
     <button id="share" type="button">${lbl(T.bShare)}</button>
     <a id="light" href="${light}">${T.light}</a>
   </nav>
-  <p class="credit"><a href="${L.CREDITS.milky.href}" rel="noopener">${L.CREDITS.milky[lang]}</a> · <a href="${L.CREDITS.moon.href}" rel="noopener">${L.CREDITS.moon[lang]}</a></p>
+  <p class="credit"><a href="${L.CREDITS.milky.href}" rel="noopener">${L.CREDITS.milky[lang]}</a> · <a href="${L.CREDITS.moon.href}" rel="noopener">${L.CREDITS.moon[lang]}</a><span id="hipCredit" hidden> · <a href="https://www.cosmos.esa.int/web/hipparcos/catalogues" rel="noopener">${lbl(WT.hipCredit)}</a></span><span id="artCredit" hidden> · <a href="${ART_CREDIT.href}" rel="noopener">${ART_CREDIT[lang]}</a></span></p>
 </div>
 <div id="timePanel" class="panel" role="group" aria-label="${T.timePanel}" hidden>
   <div class="panel-top"><span id="tpNow" class="tpnow"></span><button type="button" class="icon close" data-close="timePanel" aria-label="${T.close}">×</button></div>
   <div class="tprow"><button type="button" data-month="-1">${lbl(T.monthPrev)}</button><button type="button" data-d="-1">${lbl(T.dayPrev)}</button><button type="button" data-d="1">${lbl(T.dayNext)}</button><button type="button" data-month="1">${lbl(T.monthNext)}</button></div>
   <div class="tprow"><button type="button" id="tpNowBtn" class="gold">${lbl(T.backNow)}</button><button type="button" id="tpPlay" aria-pressed="false"></button><button type="button" id="tpSpeed"></button></div>
+</div>
+<div id="lightPanel" class="panel" role="group" aria-label="${en ? WT.bLight : WT.bLight[0]}" hidden>
+  <div class="panel-top"><h2>${lbl(WT.bLight)}</h2><button type="button" class="icon close" data-close="lightPanel" aria-label="${T.close}">×</button></div>
+  <input id="lightSlider" type="range" min="0" max="${W.LIGHT.steps}" step="1" value="0" aria-label="${en ? WT.bLight : WT.bLight[0]}">
+  <div class="lightscale">${[0, 1, 2].map((i) => `<span>${en ? WT.lightLabels[i] : lbl([WT.lightLabels[0][i], WT.lightLabels[1][i]])}</span>`).join('')}</div>
+  <p id="lightRead" class="tpnow"></p>
+  <p class="note">${lbl(WT.lightNote)}</p>
+</div>
+<div id="dsoPanel" class="panel" role="group" aria-label="${en ? WT.bDso : WT.bDso[0]}" hidden>
+  <div class="panel-top"><h2>${lbl(WT.dsoTitle)}</h2><button type="button" class="icon close" data-close="dsoPanel" aria-label="${T.close}">×</button></div>
+  <div id="dsoList" class="list"></div>
+</div>
+<div id="eventPanel" class="panel" role="group" aria-label="${en ? WT.bEvent : WT.bEvent[0]}" hidden>
+  <div class="panel-top"><h2>${lbl(WT.evTitle)}</h2><button type="button" class="icon close" data-close="eventPanel" aria-label="${T.close}">×</button></div>
+  <div id="eventList" class="evlist"></div>
 </div>
 <div id="places" class="panel" role="dialog" aria-label="${T.placePanel}" hidden>
   <div class="panel-top"><h2>${lbl(T.whose)}</h2><button id="closePlaces" type="button" class="icon close" aria-label="${T.close}">×</button></div>
@@ -159,6 +185,9 @@ export function page(lang, month) {
 <script>window.NightEvents = window.module.exports; delete window.module;</script>
 <script src="/hoshizora-night/render/sky.js"></script>
 <script src="/hoshizora-night/render/look.js"></script>
+<script src="/hoshizora-night/render/wmm.js"></script>
+<script src="/hoshizora-night/render/wow.js"></script>
+<script src="/hoshizora-night/render/dso.js"></script>
 <script src="/hoshizora-night/render/info.js"></script>
 <script src="/hoshizora-night/render/catalog-extra.js"></script>
 <script src="/hoshizora-night/render/prefectures.js"></script>

@@ -38,8 +38,23 @@ precision highp float;
 uniform mat3 uViewT; uniform mat3 uStarT; uniform mat3 uGal; uniform vec2 uScale; uniform vec3 uZen; uniform vec3 uHor; uniform vec3 uGround;
 uniform vec4 uMW[${MWN}]; uniform float uMWd[${MWN}]; uniform int uMWn; uniform float uMWk; uniform float uNoise; uniform float uHills;
 uniform sampler2D uTex; uniform float uTexK;
-uniform vec3 uSun; uniform float uDay; uniform float uGlow; uniform vec3 uMoon; uniform float uMoonK;
+uniform vec3 uSun; uniform float uDay; uniform float uGlow; uniform vec3 uMoon; uniform float uMoonK; uniform float uCity; uniform float uScatter;
+uniform vec3 uTauR; uniform float uTauM; uniform float uMieA; uniform float uMieG; uniform float uScatE;
 varying vec2 vXY;
+// 日の出・日の入りの空の色（企画書 75 の 8）: 1 回散乱の近似。render/wow.js の scatter と同じ式（係数は Bruneton & Neyret 2008）
+float airX(float s){ s = max(s, 0.0); return min(40.0, 1.0 / (s + 0.025 * exp(-11.0 * s))); }
+vec3 scatterSky(vec3 v, vec3 s){
+  float mu = dot(v, s), g = uMieG;
+  float PR = 3.0 / (16.0 * 3.14159265) * (1.0 + mu * mu);
+  float PM = 3.0 / (8.0 * 3.14159265) * (1.0 - g * g) * (1.0 + mu * mu) / ((2.0 + g * g) * pow(1.0 + g * g - 2.0 * g * mu, 1.5));
+  float Xv = airX(v.z), Xs = airX(s.z), sa = degrees(asin(clamp(s.z, -1.0, 1.0)));
+  float below = clamp((sa + 12.0) / 12.0, 0.0, 1.0);
+  vec3 tau = uTauR + vec3(uTauM), S = uTauR * PR + vec3(uTauM * uMieA * PM);
+  float dX = Xs - Xv;
+  vec3 path = abs(dX) < 1e-4 ? exp(-tau * Xv) : (exp(-tau * Xv) - exp(-tau * Xs)) / (tau * dX);
+  vec3 L = uScatE * S * Xv * path * below * below;
+  return vec3(1.0) - exp(-L);
+}
 ${HILLS}
 float hash(vec3 p){ p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
 float noise(vec3 x){
@@ -67,17 +82,22 @@ void main(){
   vec3 sunH = normalize(uSun); float sunAlt = asin(clamp(sunH.z, -1.0, 1.0)) * 57.29578;
   if (h.z < 0.0 || (uHills > 0.5 && behindHills(h))) {
     // 地面: 夜は黒に近く、昼と月明かりで少し明るい。下ほど暗い
-    vec3 g = mix(uGround, vec3(0.16, 0.20, 0.19), uDay) + vec3(0.010, 0.013, 0.020) * uMoonK;
+    vec3 g = mix(uGround, vec3(0.16, 0.20, 0.19), uDay) + vec3(0.010, 0.013, 0.020) * uMoonK + vec3(0.030, 0.022, 0.016) * uCity * (1.0 - uDay);
     g *= 0.75 + 0.25 * smoothstep(-0.5, 0.0, h.z);
     gl_FragColor = vec4(g + dith, 1.0); return;
   }
   float t = pow(clamp(h.z, 0.0, 1.0), 0.45);         // 高度が上がるほど天頂の色へ
   vec3 col = mix(uHor, uZen, t);
+  if (uScatter > 0.5) {
+    // 企画書 75 の 8: 昼・薄明・朝焼け・夕焼けを大気散乱の近似で（夜の色の上に足す）
+    col = col * (1.0 - 0.9 * uDay) + scatterSky(normalize(vec3(h.xy, max(h.z, 0.0))), sunH);
+  } else {
   // 昼の空
   vec3 day = mix(vec3(0.66, 0.80, 0.93), vec3(0.20, 0.42, 0.80), pow(clamp(h.z, 0.0, 1.0), 0.5));
   col = mix(col, day, uDay);
-  // 薄明・朝焼け・夕焼け: 太陽の方位の地平線ほど赤く、上は紫へ
-  float g = clamp(1.0 - abs(sunAlt + 4.0) / 14.0, 0.0, 1.0) * uGlow;
+  }
+  // 薄明・朝焼け・夕焼け: 太陽の方位の地平線ほど赤く、上は紫へ（散乱の近似を使わないとき。ポスターなど）
+  float g = clamp(1.0 - abs(sunAlt + 4.0) / 14.0, 0.0, 1.0) * uGlow * (1.0 - uScatter);
   if (g > 0.0) {
     vec2 hz = normalize(h.xy + 1e-5), sz = normalize(sunH.xy + 1e-5);
     float toward = pow(0.5 + 0.5 * dot(hz, sz), 3.0);
@@ -91,6 +111,8 @@ void main(){
   }
   // 地平線のかすみ（夜）
   col += vec3(0.030, 0.040, 0.070) * exp(-h.z * 14.0) * (1.0 - uDay);
+  // 街明かり（企画書 75 の 2）: 空全体が明るく、地平線ほど橙がかった光（夜だけ）
+  if (uCity > 0.0) col += uCity * (1.0 - uDay) * (vec3(0.060, 0.058, 0.066) + vec3(0.34, 0.22, 0.13) * exp(-h.z * 3.2) + vec3(0.10, 0.07, 0.05) * exp(-h.z * 12.0));
   // 天の川（画像、または中心線から）。地平線に近いほど大気で薄く
   if (uMWk > 0.001) {
     vec3 v = uStarT * h;                             // J2000 の向き
@@ -137,6 +159,7 @@ void main(){
 }`;
   const PT_FS = `
 precision mediump float;
+uniform float uPremul;
 varying vec3 vColor; varying float vAlpha; varying float vGlow;
 void main(){
   vec2 d = (gl_PointCoord - 0.5) * 2.0;
@@ -147,8 +170,13 @@ void main(){
   if (spike > 0.0) a += spike * 0.22 * (exp(-abs(d.y) * 40.0) + exp(-abs(d.x) * 40.0)) * (1.0 - smoothstep(0.2, 1.0, r));
   if (a < 0.004) discard;
   vec3 c = mix(vColor, vec3(1.0), 0.55 * (1.0 - smoothstep(0.0, 0.22, r)));   // 芯は白く、にじみに色
-  gl_FragColor = vec4(c, a * vAlpha);
+  gl_FragColor = uPremul > 0.5 ? vec4(c * a * vAlpha, 1.0) : vec4(c, a * vAlpha);   // 軌跡（企画書 75 の 5）は明るい方を残す合成なので前もって掛ける
 }`;
+
+  // 星の軌跡（企画書 75 の 5）: 星を別の絵（FBO）に描きためる。少しずつ暗くする四角と、画面に重ねる四角
+  const TR_VS = `attribute vec2 aXY; varying vec2 vUV; void main(){ vUV = aXY * 0.5 + 0.5; gl_Position = vec4(aXY, 0.0, 1.0); }`;
+  const FADE_FS = `precision mediump float; uniform float uFade; void main(){ gl_FragColor = vec4(uFade, uFade, uFade, 0.0); }`;
+  const COMP_FS = `precision mediump float; uniform sampler2D uTex; uniform float uAlpha; varying vec2 vUV; void main(){ gl_FragColor = vec4(texture2D(uTex, vUV).rgb * uAlpha, 1.0); }`;
 
   // GPU の細い線（ポスター K43 と互換）。WebGL の線は 1 物理ピクセル固定なので uOff だけずらして数回描く
   const LN_VS = `attribute vec3 aPos; uniform vec2 uOff; ${PROJ}
@@ -173,7 +201,7 @@ void main(){ float c = cos(uRot), s = sin(uRot); vUV = aC; vec2 q = vec2(c * aC.
   const SP_FS = `
 precision highp float;
 uniform int uMode; uniform vec3 uColor; uniform float uAlpha; uniform float uR; uniform vec3 uSunDir; uniform float uAspect; uniform float uRing; uniform float uBands;
-uniform sampler2D uTex; uniform float uHasTex; uniform float uEarth; uniform float uOcc;
+uniform sampler2D uTex; uniform float uHasTex; uniform float uEarth; uniform float uOcc; uniform vec4 uShadow;
 varying vec2 vUV;
 void main(){
   vec2 d = vUV;                                       // 板の上の位置 −1〜1（右・上）。円盤の半径は uR
@@ -213,6 +241,13 @@ void main(){
     if (uBands > 0.0) albedo *= 1.0 - uBands * 0.18 * (0.5 + 0.5 * sin(q.y * 14.0 + 0.6)) * smoothstep(0.85, 0.2, abs(q.y));
     float limb = 0.75 + 0.25 * z;                    // 縁が少し暗い
     col = albedo * (lambert * limb) + albedo * uEarth * (1.0 - lambert);   // 影の側は地球照でうっすら
+    if (uMode == 3 && uShadow.z > 0.0) {             // 月食（企画書 75 の 7）: 地球の本影は赤黒く、半影は少し暗く。uShadow = (影の中心 x, y, 本影, 半影)（月の半径が 1）
+      float ds = length(q - uShadow.xy);
+      float pen = clamp((ds - uShadow.z) / max(uShadow.w - uShadow.z, 0.01), 0.0, 1.0);
+      float umb = smoothstep(uShadow.z - 0.06, uShadow.z + 0.06, ds);
+      vec3 red = albedo * vec3(0.30, 0.09, 0.04) * (0.6 + 0.4 * smoothstep(0.0, uShadow.z, ds));
+      col = mix(red, col * (0.45 + 0.55 * pen), umb);
+    }
     a = (1.0 - smoothstep(uR * 0.96, uR * 1.03, r)) * mix(clamp(lambert * 1.6, 0.0, 1.0), 1.0, uOcc);   // 昼は影の側が空に溶ける
     if (uRing > 0.0 && d.y < 0.0) { col = mix(col, uColor * 0.95, ring * 0.8); }   // 手前の環
   } else if (ring > 0.0) { col = uColor * 0.9; a = ring * 0.85; }
@@ -220,6 +255,29 @@ void main(){
   vec3 outC = a > 0.0 ? col : uColor * 0.9 + 0.1;
   gl_FragColor = vec4(outC, outA * uAlpha);
 }`;
+
+  // 星座絵（企画書 75 の 3）: ヘヴェリウスの図を網（J2000 の頂点）で空に貼る。白 = 墨の濃淡を淡い色で加算
+  const ART_VS = `attribute vec3 aPos; attribute vec2 aUV; uniform mat3 uHz; uniform mat3 uView; uniform vec2 uScale;
+varying vec2 vUV; varying float vAlt; varying float vBack;
+void main(){ vec3 h = uHz * aPos; vec3 p = uView * h; vUV = aUV; vAlt = h.z; vBack = p.z;
+  gl_Position = vec4(p.xy / max(1.0 + p.z, 0.05) * uScale, 0.0, 1.0); }`;
+  const ART_FS = `precision mediump float; uniform sampler2D uTex; uniform vec3 uColor; uniform float uAlpha; uniform vec4 uMask; uniform float uHills;
+varying vec2 vUV; varying float vAlt; varying float vBack;
+void main(){
+  if (vBack < -0.6) discard;
+  float ink = texture2D(uTex, vUV).r;
+  float m = 1.0 - smoothstep(0.72, 1.0, length((vUV - uMask.xy) / uMask.zw));
+  float a = ink * m * smoothstep(-0.005, 0.04, vAlt) * uAlpha;
+  if (a < 0.003) discard;
+  gl_FragColor = vec4(uColor * a, 1.0);
+}`;
+
+  // 星雲・星団の実写（企画書 75 の 4）: 画面の上の四角（中心と、画像の右・上の半分の向きをクリップ座標で）。黒い背景は加算で空に溶ける
+  const IMG_VS = `attribute vec2 aC; uniform vec2 uClip; uniform vec2 uBx; uniform vec2 uBy; varying vec2 vUV;
+void main(){ vUV = vec2(aC.x * 0.5 + 0.5, 0.5 - aC.y * 0.5); gl_Position = vec4(uClip + aC.x * uBx + aC.y * uBy, 0.0, 1.0); }`;
+  const IMG_FS = `precision mediump float; uniform sampler2D uTex; uniform float uAlpha; uniform float uSat; varying vec2 vUV;
+void main(){ vec2 e = min(vUV, 1.0 - vUV); float edge = smoothstep(0.0, 0.06, min(e.x, e.y));
+  vec3 c = texture2D(uTex, vUV).rgb; c = mix(vec3(dot(c, vec3(0.3, 0.55, 0.15))), c, uSat); gl_FragColor = vec4(c * edge * uAlpha, 1.0); }`;
 
   // 流れ星: 画面上の帯（4 頂点）。aT は 0（尾）〜1（頭）
   const MET_VS = `attribute vec2 aXY; attribute float aT; varying float vT; void main(){ vT = aT; gl_Position = vec4(aXY, 0.0, 1.0); }`;
@@ -280,12 +338,18 @@ void main(){
     const gl = canvas.getContext('webgl', { antialias: true, alpha: false, preserveDrawingBuffer: !!opts.preserve });
     if (!gl) throw new Error('webgl');
     const bg = program(gl, BG_VS, BG_FS, ['uViewT', 'uStarT', 'uGal', 'uScale', 'uZen', 'uHor', 'uGround', 'uMW', 'uMWd', 'uMWn', 'uMWk', 'uNoise', 'uHills',
-      'uTex', 'uTexK', 'uSun', 'uDay', 'uGlow', 'uMoon', 'uMoonK']);
-    const pt = program(gl, PT_VS, PT_FS, ['uHz', 'uView', 'uScale', 'uHills', 'uDpr', 'uTime', 'uTwinkle', 'uLimit', 'uDim', 'uZoom', 'uExt', 'uMaxPt']);
+      'uTex', 'uTexK', 'uSun', 'uDay', 'uGlow', 'uMoon', 'uMoonK', 'uCity', 'uScatter', 'uTauR', 'uTauM', 'uMieA', 'uMieG', 'uScatE']);
+    const SC = root.NightWow ? root.NightWow.SCAT : null;   // 散乱の係数（render/wow.js の 1 か所）
+    const pt = program(gl, PT_VS, PT_FS, ['uHz', 'uView', 'uScale', 'uHills', 'uDpr', 'uTime', 'uTwinkle', 'uLimit', 'uDim', 'uZoom', 'uExt', 'uMaxPt', 'uPremul']);
+    const fd = program(gl, TR_VS, FADE_FS, ['uFade']);
+    const cp = program(gl, TR_VS, COMP_FS, ['uTex', 'uAlpha']);
+    const minmax = gl.getExtension('EXT_blend_minmax');
     const ln = program(gl, LN_VS, LN_FS, ['uHz', 'uView', 'uScale', 'uHills', 'uColor', 'uOff']);
     const ql = program(gl, QL_VS, QL_FS, ['uColor', 'uCore', 'uDash']);
-    const sp = program(gl, SP_VS, SP_FS, ['uClip', 'uHalf', 'uRot', 'uMode', 'uColor', 'uAlpha', 'uR', 'uSunDir', 'uAspect', 'uRing', 'uBands', 'uTex', 'uHasTex', 'uEarth', 'uOcc']);
+    const sp = program(gl, SP_VS, SP_FS, ['uClip', 'uHalf', 'uRot', 'uMode', 'uColor', 'uAlpha', 'uR', 'uSunDir', 'uAspect', 'uRing', 'uBands', 'uTex', 'uHasTex', 'uEarth', 'uOcc', 'uShadow']);
     const me = program(gl, MET_VS, MET_FS, ['uA']);
+    const im = program(gl, IMG_VS, IMG_FS, ['uClip', 'uBx', 'uBy', 'uTex', 'uAlpha', 'uSat']);
+    const ar = program(gl, ART_VS, ART_FS, ['uHz', 'uView', 'uScale', 'uTex', 'uColor', 'uAlpha', 'uMask', 'uHills']);
     const mw = MW ? milkyUniforms(MW) : null;
     const maxPt = (gl.getParameter(gl.ALIASED_POINT_SIZE_RANGE) || [1, 64])[1];
 
@@ -347,10 +411,13 @@ void main(){
       gl.uniformMatrix3fv(pt.U.uHz, false, hzCol); gl.uniformMatrix3fv(pt.U.uView, false, c.view);
       gl.uniform2fv(pt.U.uScale, c.scale); gl.uniform1f(pt.U.uHills, c.hills); gl.uniform1f(pt.U.uDpr, c.dpr); gl.uniform1f(pt.U.uTime, c.time);
       gl.uniform1f(pt.U.uTwinkle, c.twinkle); gl.uniform1f(pt.U.uLimit, c.limit); gl.uniform1f(pt.U.uDim, c.dim); gl.uniform1f(pt.U.uZoom, c.zoom);
-      gl.uniform1f(pt.U.uExt, c.ext); gl.uniform1f(pt.U.uMaxPt, maxPt);
+      gl.uniform1f(pt.U.uExt, c.ext); gl.uniform1f(pt.U.uMaxPt, maxPt); gl.uniform1f(pt.U.uPremul, c.premul ? 1 : 0);
       gl.drawArrays(gl.POINTS, 0, B.n);
     }
 
+    /** 双眼鏡・望遠鏡で足す暗い星（企画書 75 の 6）。押したときに 1 回だけ */
+    let faintBufs = null;
+    function setFaint(list) { if (!faintBufs) faintBufs = mk(starAttribs(list)); }
     /** 惑星（その日の赤道座標の単位ベクトル。地平への行列は H）を差し替える */
     function setBodies(list) {
       const a = starAttribs(list);
@@ -366,6 +433,88 @@ void main(){
       const f = new Float32Array(segs.length * 6); segs.forEach(([a, b], i) => { f.set(a, i * 6); f.set(b, i * 6 + 3); });
       L2.b = buf(f); L2.n = segs.length * 2;
     }
+
+    /** 星の軌跡（企画書 75 の 5）の描きためる絵。画面の大きさが変わったら作り直す（中身は消える） */
+    const trailFb = { fb: null, tex: null, w: 0, h: 0 };
+    function trailTarget(w, h) {
+      if (trailFb.fb && trailFb.w === w && trailFb.h === h) return false;
+      if (trailFb.fb) { gl.deleteFramebuffer(trailFb.fb); gl.deleteTexture(trailFb.tex); }
+      const t = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      const fb = gl.createFramebuffer(); gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+      gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, t, 0);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      Object.assign(trailFb, { fb, tex: t, w, h });
+      return true;
+    }
+
+    /** 星座絵（企画書 75 の 3）。list は render/art.js の ART。画像は loadArt を呼んだときに初めて読む（遅延読み込み） */
+    const arts = {};
+    function setArt(list) {
+      for (const a of list) {
+        const n = a.mesh + 1, pos = new Float32Array(a.verts), uv = new Float32Array(n * n * 2), idx = [];
+        for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) { uv[(j * n + i) * 2] = i / a.mesh; uv[(j * n + i) * 2 + 1] = j / a.mesh; }
+        for (let j = 0; j < a.mesh; j++) for (let i = 0; i < a.mesh; i++) { const k = j * n + i; idx.push(k, k + 1, k + n, k + 1, k + n + 1, k + n); }
+        const ib = gl.createBuffer(); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ib); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(idx), gl.STATIC_DRAW);
+        arts[a.id] = { pos: buf(pos), uv: buf(uv), ib, count: idx.length, mask: a.mask, file: a.file, tex: null, at: 0, loading: false };
+      }
+    }
+    function loadArt(base, onload) {
+      for (const a of Object.values(arts)) {
+        if (a.tex || a.loading || typeof Image === 'undefined') continue;
+        a.loading = true;
+        const img = new Image(); img.decoding = 'async';
+        img.onload = () => {
+          const t = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t);
+          gl.texImage2D(gl.TEXTURE_2D, 0, gl.LUMINANCE, gl.LUMINANCE, gl.UNSIGNED_BYTE, img);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+          a.tex = t; a.at = (typeof performance !== 'undefined' ? performance.now() : Date.now()); if (onload) onload();
+        };
+        img.src = base + a.file;
+      }
+    }
+    function drawArt(o, starM, view, scale, hills, now) {
+      for (const a of Object.values(arts)) {
+        if (!a.tex) continue;
+        const k = opts.instantTextures ? 1 : Math.min(1, (now - a.at) / 800);
+        use(ar); bindAttr(ar, 'aPos', a.pos, 3); bindAttr(ar, 'aUV', a.uv, 2);
+        gl.uniformMatrix3fv(ar.U.uHz, false, starM); gl.uniformMatrix3fv(ar.U.uView, false, view); gl.uniform2fv(ar.U.uScale, scale);
+        gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, a.tex); gl.uniform1i(ar.U.uTex, 0);
+        gl.uniform3fv(ar.U.uColor, o.color || [0.62, 0.72, 1.0]); gl.uniform1f(ar.U.uAlpha, (o.alpha == null ? 0.3 : o.alpha) * k);
+        gl.uniform4fv(ar.U.uMask, a.mask); gl.uniform1f(ar.U.uHills, hills);
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, a.ib); gl.blendFunc(gl.ONE, gl.ONE);
+        gl.drawElements(gl.TRIANGLES, a.count, gl.UNSIGNED_SHORT, 0);
+      }
+    }
+    /** 実写の画像（企画書 75 の 4）。初めて要るときに読む */
+    const photos = {};
+    function loadPhoto(id, url, onload) {
+      if (photos[id] || typeof Image === 'undefined') return;
+      photos[id] = { tex: null, at: 0 };
+      const img = new Image(); img.decoding = 'async';
+      img.onload = () => {
+        const t = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, img);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        photos[id].tex = t; photos[id].at = (typeof performance !== 'undefined' ? performance.now() : Date.now()); if (onload) onload(id);
+      };
+      img.src = url;
+    }
+    /** o: { id, clip:[x,y], bx:[x,y], by:[x,y]（クリップ座標）, alpha } */
+    function drawPhoto(o, now) {
+      const ph = photos[o.id]; if (!ph || !ph.tex) return;
+      const k = opts.instantTextures ? 1 : Math.min(1, (now - ph.at) / 800);
+      use(im); bindAttr(im, 'aC', quad, 2);
+      gl.uniform2fv(im.U.uClip, o.clip); gl.uniform2fv(im.U.uBx, o.bx); gl.uniform2fv(im.U.uBy, o.by); gl.uniform1f(im.U.uAlpha, (o.alpha == null ? 1 : o.alpha) * k); gl.uniform1f(im.U.uSat, o.sat == null ? 1 : o.sat);
+      gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, ph.tex); gl.uniform1i(im.U.uTex, 0);
+      gl.blendFunc(gl.ONE, gl.ONE); gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    }
+    const photoState = () => Object.fromEntries(Object.entries(photos).map(([k, p]) => [k, !!p.tex]));
+    const artState = () => Object.fromEntries(Object.entries(arts).map(([k, a]) => [k, !!a.tex]));
 
     /** 画面の縮尺（立体射影 → クリップ座標） */
     function scaleOf(st) {
@@ -409,7 +558,7 @@ void main(){
       gl.uniform1f(sp.U.uRot, o.rot || 0); gl.uniform1i(sp.U.uMode, o.mode); gl.uniform3fv(sp.U.uColor, o.color || [1, 1, 1]);
       gl.uniform1f(sp.U.uAlpha, o.alpha == null ? 1 : o.alpha); gl.uniform1f(sp.U.uR, o.r || 0.3);
       gl.uniform3fv(sp.U.uSunDir, o.sun || [0, 0, 1]); gl.uniform1f(sp.U.uAspect, o.aspect || 1);
-      gl.uniform1f(sp.U.uRing, o.ring ? 1 : 0); gl.uniform1f(sp.U.uBands, o.bands || 0); gl.uniform1f(sp.U.uEarth, o.earth || 0); gl.uniform1f(sp.U.uOcc, o.occ == null ? 1 : o.occ);
+      gl.uniform1f(sp.U.uRing, o.ring ? 1 : 0); gl.uniform1f(sp.U.uBands, o.bands || 0); gl.uniform1f(sp.U.uEarth, o.earth || 0); gl.uniform1f(sp.U.uOcc, o.occ == null ? 1 : o.occ); gl.uniform4fv(sp.U.uShadow, o.shadow || [0, 0, 0, 0]);
       gl.activeTexture(gl.TEXTURE0); const mt = o.mode === 3 ? tex.moon : null;
       gl.bindTexture(gl.TEXTURE_2D, mt || blank); gl.uniform1i(sp.U.uTex, 0); gl.uniform1f(sp.U.uHasTex, mt ? texK('moon', now) : 0);
       gl.blendFunc(gl.SRC_ALPHA, o.mode === 0 ? gl.ONE : gl.ONE_MINUS_SRC_ALPHA);
@@ -444,18 +593,46 @@ void main(){
       gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, tex.milky || blank); gl.uniform1i(bg.U.uTex, 0);
       gl.uniform1f(bg.U.uTexK, st.milkyTex === false ? 0 : texK('milky', now));
       gl.uniform3fv(bg.U.uSun, sky.sun || [0, 0, -1]); gl.uniform1f(bg.U.uDay, sky.day || 0); gl.uniform1f(bg.U.uGlow, sky.glow || 0);
-      gl.uniform3fv(bg.U.uMoon, sky.moon || [0, 0, -1]); gl.uniform1f(bg.U.uMoonK, sky.moonK || 0);
+      gl.uniform3fv(bg.U.uMoon, sky.moon || [0, 0, -1]); gl.uniform1f(bg.U.uMoonK, sky.moonK || 0); gl.uniform1f(bg.U.uCity, sky.city || 0);
+      gl.uniform1f(bg.U.uScatter, sky.scatter && SC ? 1 : 0);
+      if (SC) { gl.uniform3fv(bg.U.uTauR, SC.betaR.map((b) => b * SC.HR)); gl.uniform1f(bg.U.uTauM, SC.betaM / SC.mieAlbedo * SC.HM); gl.uniform1f(bg.U.uMieA, SC.mieAlbedo); gl.uniform1f(bg.U.uMieG, SC.g); gl.uniform1f(bg.U.uScatE, SC.E * SC.exposure); }
       gl.drawArrays(gl.TRIANGLES, 0, 3);
       // 星雲・銀河（星の後ろ）
       gl.enable(gl.BLEND);
+      // 実写の画像（星の後ろ。企画書 75 の 4）
+      for (const o of st.photos || []) drawPhoto(o, now);
+      // 星座絵（星の後ろ。企画書 75 の 3）
+      if (st.art && st.art.alpha > 0) drawArt(st.art, S.toColumnMajor(st.starM), S.toColumnMajor(V), scale, hills, now);
       for (const o of st.glows || []) drawSprite(o, cssW, cssH, now);
       // 星・惑星（加算合成）
       gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
-      const common = { view: S.toColumnMajor(V), scale, dpr: st.dpr, time: st.time, twinkle: st.twinkle, zoom: st.zoom, hills, ext: sky.ext ? 1 : 0,
+      // 点の大きさは拡大 3 倍までで止める（星雲へのズーム・双眼鏡で何十倍にしても、星は点のまま。企画書 75）
+      const common = { view: S.toColumnMajor(V), scale, dpr: st.dpr, time: st.time, twinkle: st.twinkle, zoom: Math.min(st.zoom, st.pointZoom || 3), hills, ext: sky.ext ? 1 : 0,
         limit: st.sky ? st.limit : Math.min(st.limit, L.STAR_LIMIT + 0.1 - 4.6 * Math.max(st.twilight, st.dusk)),
         dim: st.sky ? (sky.dim == null ? 1 : sky.dim) : 1 - 0.6 * Math.max(st.twilight, st.dusk) };
-      drawPoints(starBufs, S.toColumnMajor(st.starM), common);
-      if (bodyBufs) drawPoints(bodyBufs, S.toColumnMajor(st.H), Object.assign({}, common, { limit: 9, twinkle: 0 }));
+      if (st.trail) {
+        // 星の軌跡: 描きためる絵へ（明るい方を残す合成。無い端末は足し合わせ）→ 少しずつ暗くする → 画面に足す
+        const fresh = trailTarget(w, h);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, trailFb.fb); gl.viewport(0, 0, w, h);
+        if (st.trail.reset || fresh) { gl.clearColor(0, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT); }
+        else if (st.trail.fade > 0) {
+          use(fd); bindAttr(fd, 'aXY', tri, 2); gl.uniform1f(fd.U.uFade, st.trail.fade);
+          gl.blendEquation(gl.FUNC_REVERSE_SUBTRACT); gl.blendFunc(gl.ONE, gl.ONE); gl.drawArrays(gl.TRIANGLES, 0, 3); gl.blendEquation(gl.FUNC_ADD);
+        }
+        const tc = Object.assign({}, common, { twinkle: 0, premul: true });
+        if (minmax) gl.blendEquation(minmax.MAX_EXT); gl.blendFunc(gl.ONE, gl.ONE);
+        for (const M of st.trail.steps || [st.starM]) drawPoints(starBufs, S.toColumnMajor(M), tc);
+        for (const Hm of st.trail.bodySteps || [st.H]) if (bodyBufs) drawPoints(bodyBufs, S.toColumnMajor(Hm), Object.assign({}, tc, { limit: 9 }));
+        gl.blendEquation(gl.FUNC_ADD);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.viewport(0, 0, w, h);
+        use(cp); bindAttr(cp, 'aXY', tri, 2); gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, trailFb.tex); gl.uniform1i(cp.U.uTex, 0);
+        gl.uniform1f(cp.U.uAlpha, 1); gl.blendFunc(gl.ONE, gl.ONE); gl.drawArrays(gl.TRIANGLES, 0, 3);
+        gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
+      } else {
+        drawPoints(starBufs, S.toColumnMajor(st.starM), common);
+        if (st.faint && faintBufs) drawPoints(faintBufs, S.toColumnMajor(st.starM), Object.assign({}, common, { twinkle: 0 }));
+        if (bodyBufs) drawPoints(bodyBufs, S.toColumnMajor(st.H), Object.assign({}, common, { limit: 9, twinkle: 0 }));
+      }
       // 星座線（GPU の細い線。ポスター）
       const c = L.hex(L.LINE.color);
       const drawLines = (L2, alpha) => {
@@ -480,8 +657,8 @@ void main(){
       // 画面の上の柔らかい線（星座線・大三角）
       for (const q of st.quads || []) drawQuadLines(q, cssW, cssH, st.dpr || 1);
       // 流れ星
-      if (st.meteor) {
-        const m = st.meteor, dx = m.b[0] - m.a[0], dy = m.b[1] - m.a[1], len = Math.hypot(dx * w, dy * h) || 1;
+      for (const m of (st.meteors || []).concat(st.meteor ? [st.meteor] : [])) {
+        const dx = m.b[0] - m.a[0], dy = m.b[1] - m.a[1], len = Math.hypot(dx * w, dy * h) || 1;
         const nx = -dy * h / len * m.w / w, ny = dx * w / len * m.w / h;
         gl.bindBuffer(gl.ARRAY_BUFFER, metXY);
         gl.bufferSubData(gl.ARRAY_BUFFER, 0, new Float32Array([m.a[0] - nx * 0.2, m.a[1] - ny * 0.2, m.a[0] + nx * 0.2, m.a[1] + ny * 0.2, m.b[0] - nx, m.b[1] - ny, m.b[0] + nx, m.b[1] + ny]));
@@ -512,7 +689,7 @@ void main(){
     /** 画面の 1° が何 CSS px か（画面の中心で） */
     function pxPerDeg(st, cssW, cssH) { return st.zoom / Math.tan(st.fovDeg * Math.PI / 720) * Math.min(cssW, cssH) / 2 * (Math.PI / 180) / 2; }
 
-    return { gl, draw, setBodies, setLines, project, pxPerDeg, textures: () => ({ milky: !!tex.milky, moon: !!tex.moon }) };
+    return { gl, draw, setBodies, setLines, project, pxPerDeg, setArt, loadArt, artState, loadPhoto, photoState, trailMax: !!minmax, setFaint, faintCount: () => (faintBufs ? faintBufs.n : 0), textures: () => ({ milky: !!tex.milky, moon: !!tex.moon }) };
   }
 
   root.NightRender = { create, viewMatrix, starAttribs, milkyUniforms, MWN };
