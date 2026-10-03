@@ -183,6 +183,34 @@ const WINTER = '#35.69,139.69,1800021600';  // 2027-01-15 23:00 JST 東京（冬
     R.features[5] = F;
   }
 
+  /* 6 双眼鏡・望遠鏡: 円い視野・拡大・暗い星（ヒッパルコス星表）を押したときに読む・限界等級が上がる。もう一度で望遠鏡、もう一度で肉眼 */
+  if (want(6)) {
+    const F = { shots: [] };
+    for (const [dev, tag] of [[PHONE, 'phone'], [PC, 'pc']]) {
+      const ctx = await ctxOf(dev, { reducedMotion: 'reduce' }), p = await ctx.newPage(), reqs = [], errors = [];
+      p.on('request', (q) => reqs.push(q.url())); p.on('pageerror', (e) => errors.push(e.message));
+      await p.goto(`${base}?probe=off${WINTER}`); await ready(p); await p.waitForTimeout(400);
+      const before = reqs.filter((u) => /render\/hip\.js/.test(u)).length;
+      F[tag] = { alt: await p.evaluate(() => window.__night.lookAt(56.75, 24.12)) };   // すばる
+      await p.click('#scopeBtn');
+      await p.waitForFunction(() => window.__night.faint > 0, null, { timeout: 15000 }); await p.waitForTimeout(600);
+      F[tag].bino = await p.evaluate(() => ({ scope: window.__night.scope, zoom: window.__night.view.zoom, faint: window.__night.faint, toast: window.__night.toast,
+        mask: !document.getElementById('scopeMask').hidden, credit: !document.getElementById('hipCredit').hidden }));
+      F.shots.push(await shot(p, `6-scope-${tag}-bino-m45.png`));
+      await p.evaluate(() => window.__night.lookAt(83.82, -5.39));   // オリオン大星雲のあたり（望遠鏡）
+      await p.click('#scopeBtn'); await p.waitForTimeout(500);
+      F[tag].tele = await p.evaluate(() => ({ scope: window.__night.scope, zoom: window.__night.view.zoom, toast: window.__night.toast }));
+      F.shots.push(await shot(p, `6-scope-${tag}-tele-orion.png`));
+      await p.click('#scopeBtn'); await p.waitForTimeout(300);
+      F[tag].off = await p.evaluate(() => ({ scope: window.__night.scope, zoom: window.__night.view.zoom, mask: !document.getElementById('scopeMask').hidden }));
+      F[tag].hipBefore = before; F[tag].hipAfter = reqs.filter((u) => /render\/hip\.js/.test(u)).length; F[tag].errors = errors;
+      await ctx.close();
+    }
+    F.ok = ['phone', 'pc'].every((t) => { const x = F[t]; return x.hipBefore === 0 && x.hipAfter === 1 && x.bino.scope === 'bino' && x.bino.faint > 50000 && x.bino.mask && x.bino.credit
+      && x.bino.zoom > 10 && x.tele.scope === 'tele' && x.tele.zoom > 60 && x.off.scope === null && !x.off.mask && x.off.zoom <= 3 && !x.errors.length; });
+    R.features[6] = F;
+  }
+
   await browser.close(); srv.close();
   fs.writeFileSync(path.join(OUT, 'result.json'), JSON.stringify(R, null, 2));
   const ng = Object.entries(R.features).filter(([, f]) => !f.ok).map(([k]) => k);

@@ -57,7 +57,8 @@
   // 企画書 75: 星雲・星団へのズーム中の天体（deep）。ズーム中は拡大の上限を上げる
   const DSOI = (window.NightDso && window.NightDso.DSO_IMAGES) || [];
   let deep = null;
-  const zMax = () => (deep ? WOW.ZOOM_DEEP : L.ZOOM.max);
+  let scope = null;   // 双眼鏡・望遠鏡（企画書 75 の 6）: { mode, zoom, prevZoom }
+  const zMax = () => (scope ? scope.zoom : deep ? WOW.ZOOM_DEEP : L.ZOOM.max);
   let selected = null, picked = null, quiz = null, quizSeq = 0, sheetKind = null, fly = null;
   const placeName = (p) => p.name && !EN && kids && p.kana ? p.kana : L.placeText(p, P, EN).main;
 
@@ -257,7 +258,7 @@
     if (introStart != null) { intro = Math.min(1, (now - introStart) / L.INTRO.ms); if (intro >= 1) introStart = null; dirty = true; }
     const ease = intro * intro * (3 - 2 * intro);
     let meteorDraw = null;
-    if (!reduce.matches && intro >= 1 && !trail) {
+    if (!reduce.matches && intro >= 1 && !trail && !scope) {
       if (!meteor && now >= nextMeteor) meteor = spawnMeteor(now);
       if (meteor) {
         const k = (now - meteor.t0) / meteor.dur;
@@ -276,7 +277,10 @@
     const dayF = L.dayFactor(sAltD), starF = L.starFactor(sAltD), moonF = L.moonLight(M.illum, mAltD, dayF);
     const pxDeg = r.pxPerDeg(st, cw, ch), scale = Math.sqrt(st.zoom);
     const lp = WOW.lightPollution(lightU);   // 街明かり（企画書 75 の 2）
-    const limit = Math.min(L.limitMag(Math.min(st.limit, L.STAR_LIMIT + 0.1, lp.limit + 0.1), moonF, starF), -1.5 + (st.limit + 1.5) * ease);
+    // 双眼鏡・望遠鏡（企画書 75 の 6）: 口径の分だけ暗い星まで（星表の 8.5 等まで。遅い端末の段階では足さない）
+    const baseLim = scope ? Math.min(faintOn() ? WOW.SCOPE.catalogLimit : L.STAR_LIMIT, WOW.scopeLimit(lp.limit, WOW.SCOPE.modes[scope.mode].aperture)) + 0.1
+      : Math.min(st.limit, L.STAR_LIMIT + 0.1, lp.limit + 0.1);
+    const limit = Math.min(L.limitMag(baseLim, moonF, starF), -1.5 + (baseLim + 1.5) * ease);
 
     /* 星の画面の位置（星座線・名前・タップ用） */
     for (const s of picks) {
@@ -295,7 +299,7 @@
       return out;
     };
     const hotCon = (quiz && quiz.reveal) || selected;
-    if (!trail && (starF > 0.05 || (quiz && quiz.reveal))) {
+    if (!trail && !scope && (starF > 0.05 || (quiz && quiz.reveal))) {
       if (showLines) quads.push({ segs: CONS.filter((c) => c !== hotCon).flatMap(segOf), width: 1.1, color: [0.6, 0.74, 1.0], alpha: 0.42 * starF * ease });
       if (hotCon) quads.push({ segs: segOf(hotCon), width: 1.8, color: [1.0, 0.82, 0.48], alpha: 0.95 * Math.max(starF, quiz ? 0.4 : 0) * Math.min(1, (now - pickedAt) / (reduce.matches ? 1 : 500)) });
     }
@@ -363,9 +367,15 @@
     }
     /* 星雲・星団の実写（企画書 75 の 4）: 画像の中心・右・上の 3 点を星と同じ行列で画面へ */
     const photos = [];
-    if (deep) {
-      const c = WOW.photoCorners(deep), pc = proj(S.apply(starM, c.c), 0.05), pr = proj(S.apply(starM, c.right), 0.05), pt = proj(S.apply(starM, c.top), 0.05);
-      if (pc && pr && pt) photos.push({ id: deep.id, clip: pc.clip, bx: [pr.clip[0] - pc.clip[0], pr.clip[1] - pc.clip[1]], by: [pt.clip[0] - pc.clip[0], pt.clip[1] - pc.clip[1]], alpha: 0.95 * Math.max(0.15, starF) });
+    const addPhoto = (d, alpha, sat) => {
+      const c = WOW.photoCorners(d), pc = proj(S.apply(starM, c.c), 0.05), pr = proj(S.apply(starM, c.right), 0.05), pt = proj(S.apply(starM, c.top), 0.05);
+      if (pc && pr && pt) photos.push({ id: d.id, clip: pc.clip, bx: [pr.clip[0] - pc.clip[0], pr.clip[1] - pc.clip[1]], by: [pt.clip[0] - pc.clip[0], pt.clip[1] - pc.clip[1]], alpha, sat });
+    };
+    if (deep) addPhoto(deep, 0.95 * Math.max(0.15, starF), 1);
+    // 双眼鏡・望遠鏡の視野に入った天体は、色を抜いて淡く（目で見る星雲は色が薄い。企画書 75 の 6）
+    if (scope) for (const d of DSOI) {
+      const h = S.apply(starM, S.vec(d.ra * DEG, d.dec * DEG)), p = h[2] > 0 ? proj(h) : null;
+      if (p && Math.hypot(p.x - cw / 2, p.y - ch / 2) < Math.min(cw, ch) * 0.6) { r.loadPhoto(d.id, '/hoshizora-night/' + d.file, () => { dirty = true; }); addPhoto(d, 0.45 * starF, 0.15); }
     }
     /* 星の軌跡（企画書 75 の 5）: 向き・拡大・場所・画面の大きさが変わったら描きためた絵を消す */
     let trailSt = null;
@@ -381,7 +391,7 @@
       }
       window.__night.trailFrames = (window.__night.trailFrames || 0) + 1;
     }
-    r.draw({ trail: trailSt, photos, pointZoom: 3, art: showArt ? { alpha: 0.34 * starF * ease, color: [0.62, 0.72, 1.0] } : null, starM, H, az: st.az, alt: st.alt, zoom: st.zoom, fovDeg: st.fovDeg, dpr: dprCap(), time: twinkleOn ? now / 1000 : 0, now, cssW: cw, cssH: ch,
+    r.draw({ faint: !!scope && faintOn(), trail: trailSt, photos, pointZoom: 3, art: showArt ? { alpha: 0.34 * starF * ease, color: [0.62, 0.72, 1.0] } : null, starM, H, az: st.az, alt: st.alt, zoom: st.zoom, fovDeg: st.fovDeg, dpr: dprCap(), time: twinkleOn ? now / 1000 : 0, now, cssW: cw, cssH: ch,
       twinkle: twinkleOn ? 1 : 0, limit, twilight: L.twilightWeight(sim, place.lat, place.lon) * (1 - dayF), dusk: 1 - ease,
       milky: st.stage === 'full' ? mwF * ease : 0, milkyTex: st.stage === 'full', noise: true, hills: true,
       sky: { sun: sunHz, day: dayF, glow: 1, moon: mH, moonK: moonF, ext: 1, dim: 1 - 0.3 * (1 - starF), city: lp.glow },
@@ -389,7 +399,7 @@
 
     /* 名前 */
     avoid = uiRects();
-    if (showNames && !quiz && starF > 0.05 && !trail) {
+    if (showNames && !quiz && starF > 0.05 && !trail && !scope) {
       for (const c of CONS) {
         let sx = 0, sy = 0, n = 0;
         for (const i of c.pi) { const s = picks[i]; if (s.vis) { sx += s.x; sy += s.y; n++; } }
@@ -472,7 +482,7 @@
     const cur = { x: e.clientX, y: e.clientY }; ptrs.set(e.pointerId, cur);
     if (ptrs.size === 2) {
       const [a, b] = [...ptrs.values()], d = Math.hypot(a.x - b.x, a.y - b.y);
-      if (pinch0 > 0) st.zoom = Math.max(L.ZOOM.min, Math.min(zMax(), zoom0 * d / pinch0));
+      if (pinch0 > 0 && !scope) st.zoom = Math.max(L.ZOOM.min, Math.min(zMax(), zoom0 * d / pinch0));
     } else {
       const dx = cur.x - prev.x, dy = cur.y - prev.y, f = 2 / k();
       if (gyro.on && Math.abs(dx) + Math.abs(dy) > 6) stopGyro(true);
@@ -489,7 +499,7 @@
   };
   canvas.addEventListener('pointerup', up);
   canvas.addEventListener('pointercancel', (e) => { ptrs.delete(e.pointerId); down = null; });
-  canvas.addEventListener('wheel', (e) => { e.preventDefault(); fly = null; st.zoom = Math.max(L.ZOOM.min, Math.min(zMax(), st.zoom * Math.exp(-e.deltaY / 500))); dirty = true; }, { passive: false });
+  canvas.addEventListener('wheel', (e) => { e.preventDefault(); if (scope) return; fly = null; st.zoom = Math.max(L.ZOOM.min, Math.min(zMax(), st.zoom * Math.exp(-e.deltaY / 500))); dirty = true; }, { passive: false });
   addEventListener('keydown', (e) => {
     if (e.key === 'Escape') { closeSheet(); closePanels(); $('help').hidden = true; return; }
     if (e.target !== canvas && e.target !== document.body) return;
@@ -497,8 +507,8 @@
     if (e.key === 'ArrowLeft') st.az -= step; else if (e.key === 'ArrowRight') st.az += step;
     else if (e.key === 'ArrowUp') st.alt = Math.min(89 * DEG, st.alt + step);
     else if (e.key === 'ArrowDown') st.alt = Math.max(-5 * DEG, st.alt - step);
-    else if (e.key === '+' || e.key === ';') st.zoom = Math.min(zMax(), st.zoom * 1.15);
-    else if (e.key === '-') st.zoom = Math.max(L.ZOOM.min, st.zoom / 1.15);
+    else if ((e.key === '+' || e.key === ';') && !scope) st.zoom = Math.min(zMax(), st.zoom * 1.15);
+    else if (e.key === '-' && !scope) st.zoom = Math.max(L.ZOOM.min, st.zoom / 1.15);
     else return;
     st.az = (st.az + 2 * Math.PI) % (2 * Math.PI); fly = null; dirty = true; e.preventDefault();
   });
@@ -771,6 +781,7 @@
 
   /* ---------------- 4 星雲・星団へのズーム（企画書 75）: ESA/Hubble の実写を、向きと大きさを空に合わせて重ねる ---------------- */
   function openDso(d, go) {
+    if (scope) setScope(null);
     selected = null; mark(null); deep = d; setPlaying(false);
     r.loadPhoto(d.id, '/hoshizora-night/' + d.file, () => { dirty = true; texSettle = performance.now() + 900; });
     const esc = (t) => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;');
@@ -817,6 +828,42 @@
     setPressed('trailBtn', !!trail); dirty = true; window.__night.trail = !!trail;
   }
   $('trailBtn').addEventListener('click', () => setTrail(!trail));
+
+  /* ---------------- 6 双眼鏡・望遠鏡（企画書 75）: 円い視野で拡大し、限界等級を上げる ---------------- */
+  let faintState = 'none';   // none → loading → ok
+  const faintOn = () => faintState === 'ok' && st.stage === 'full';
+  function loadFaint() {
+    if (faintState !== 'none' || !WOW.SCOPE.hipparcos || st.stage !== 'full') return;
+    faintState = 'loading';
+    const sc = document.createElement('script'); sc.src = '/hoshizora-night/render/hip.js';
+    sc.onload = () => {
+      const dec = (b) => { const t = atob(b), u = new Uint8Array(t.length); for (let i = 0; i < t.length; i++) u[i] = t.charCodeAt(i); return u; };
+      r.setFaint(WOW.decodeHip(window.NightHip.HIP, dec)); faintState = 'ok'; scopeUi(); dirty = true;
+    };
+    document.head.appendChild(sc);
+  }
+  function scopeUi() {
+    const m = $('scopeMask'); m.hidden = !scope;
+    if (scope) m.style.setProperty('--r', `${Math.round(WOW.SCOPE.frac * Math.min(canvas.clientWidth, canvas.clientHeight))}px`);
+    $('hipCredit').hidden = !(scope && faintOn());
+    setPressed('scopeBtn', !!scope);
+    const lab = WT[scope && scope.mode === 'tele' ? 'bScopeTele' : 'bScope'];
+    $('scopeBtn').innerHTML = Array.isArray(lab) ? `<span class="ad">${lab[0]}</span><span class="kd">${lab[1]}</span>` : lab;
+    window.__night.scope = scope ? scope.mode : null; window.__night.faint = r.faintCount();
+  }
+  function setScope(mode) {
+    if (mode && deep) closeSheet();
+    if (mode) {
+      const prev = scope ? scope.prevZoom : st.zoom;
+      scope = { mode, zoom: WOW.scopeZoom(WOW.SCOPE.modes[mode].field, st.fovDeg), prevZoom: prev };
+      st.zoom = scope.zoom; fly = null; loadFaint();
+      const lim = WOW.lightPollution(lightU).limit + 5 * Math.log10(WOW.SCOPE.modes[mode].aperture / WOW.SCOPE.eyePupil);   // 星表で切る前の限界等級
+      toast(wt(mode === 'bino' ? 'scopeBino' : 'scopeTele')(Math.min(lim, WOW.SCOPE.catalogLimit)) + (lim > WOW.SCOPE.catalogLimit ? ' ' + wt('scopeCap') : ''));
+    } else if (scope) { st.zoom = Math.min(scope.prevZoom, L.ZOOM.max); scope = null; toast(wt('scopeOff')); }
+    scopeUi(); dirty = true;
+  }
+  $('scopeBtn').addEventListener('click', () => setScope(!scope ? 'bino' : scope.mode === 'bino' ? 'tele' : null));
+  addEventListener('resize', () => { if (scope) scopeUi(); });
 
   // 使い方
   $('helpBtn').addEventListener('click', () => { $('help').hidden = false; });
@@ -865,7 +912,8 @@
 
   window.__night = { stage: 'full', fps: [], playing, picked: null, get place() { return place.id; }, sheet: null, toast: null, get sim() { return sim; }, get limit() { return st.limit; },
     allLines: showLines, intro: () => introStart == null, meteor: () => !!meteor, forceMeteor: (dur) => { nextMeteor = 0; forcedDur = dur || 0; },
-    gyro: null, light: null, art: false, trail: false, trailFrames: 0, artState: () => r.artState(), deep: null, photoState: () => r.photoState(), openDso: (id) => openDso(DSOI.find((d) => d.id === id), true), setLight: (u) => { lightSlider.value = String(Math.round(u * WOW.LIGHT.steps)); lightSlider.dispatchEvent(new Event('input')); }, reduce: reduce.matches, select: (x, y) => handleTap(x, y), view: st, flying: () => !!fly, textures: () => r.textures(),
+    gyro: null, light: null, art: false, trail: false, trailFrames: 0, scope: null, faint: 0, setScope: (m) => setScope(m),
+    lookAt: (raDeg, decDeg) => { const h = S.apply(S.starMatrix(sim, place.lat, place.lon), S.vec(raDeg * DEG, decDeg * DEG)); st.az = Math.atan2(h[0], h[1]); st.alt = Math.asin(h[2]); fly = null; dirty = true; return Math.asin(h[2]) / DEG; }, artState: () => r.artState(), deep: null, photoState: () => r.photoState(), openDso: (id) => openDso(DSOI.find((d) => d.id === id), true), setLight: (u) => { lightSlider.value = String(Math.round(u * WOW.LIGHT.steps)); lightSlider.dispatchEvent(new Event('input')); }, reduce: reduce.matches, select: (x, y) => handleTap(x, y), view: st, flying: () => !!fly, textures: () => r.textures(),
     loading: () => { const t = r.textures(); return params.get('tex') !== 'off' && (!t.milky || !t.moon || performance.now() < texSettle); },
     where: (name) => {   // 確かめ用: 名前の付いた星・惑星・月の画面上の位置（CSS px）。見えなければ null
       const bp = lastFrameState && lastFrameState.bodyPos[name]; if (bp) return bp.x == null ? null : { x: bp.x, y: bp.y };

@@ -39,6 +39,9 @@ body:not(.kids) .kd, body.kids .ad { display: none !important; }
 .dirs .main { font-size: 15px; font-weight: 600; color: rgba(240, 200, 110, .9); }
 .dirs .sub { font-size: 11px; color: rgba(154, 165, 196, .8); }
 body.kids .dirs .sub { display: none; }
+/* 双眼鏡・望遠鏡の円い視野（企画書 75 の 6）。--r は app が画面の短い辺 × 0.45 を入れる */
+.scopemask { position: fixed; inset: 0; pointer-events: none; z-index: 1;
+  background: radial-gradient(circle at 50% 50%, transparent calc(var(--r, 180px) - 1px), rgba(120, 140, 190, .45) var(--r, 180px), rgba(1, 2, 6, .96) calc(var(--r, 180px) + 2px)); }
 /* 空の上の名前（星座・星・惑星・大三角） */
 .labels span { position: fixed; left: 0; top: 0; pointer-events: none; white-space: nowrap; text-shadow: 0 0 6px #000, 0 1px 3px #000; will-change: transform; }
 .labels .con { font-family: var(--serif); font-size: 13px; letter-spacing: .14em; color: rgba(240, 200, 110, .66); }

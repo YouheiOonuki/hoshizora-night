@@ -248,9 +248,9 @@ void main(){
   // 星雲・星団の実写（企画書 75 の 4）: 画面の上の四角（中心と、画像の右・上の半分の向きをクリップ座標で）。黒い背景は加算で空に溶ける
   const IMG_VS = `attribute vec2 aC; uniform vec2 uClip; uniform vec2 uBx; uniform vec2 uBy; varying vec2 vUV;
 void main(){ vUV = vec2(aC.x * 0.5 + 0.5, 0.5 - aC.y * 0.5); gl_Position = vec4(uClip + aC.x * uBx + aC.y * uBy, 0.0, 1.0); }`;
-  const IMG_FS = `precision mediump float; uniform sampler2D uTex; uniform float uAlpha; varying vec2 vUV;
+  const IMG_FS = `precision mediump float; uniform sampler2D uTex; uniform float uAlpha; uniform float uSat; varying vec2 vUV;
 void main(){ vec2 e = min(vUV, 1.0 - vUV); float edge = smoothstep(0.0, 0.06, min(e.x, e.y));
-  vec3 c = texture2D(uTex, vUV).rgb; gl_FragColor = vec4(c * edge * uAlpha, 1.0); }`;
+  vec3 c = texture2D(uTex, vUV).rgb; c = mix(vec3(dot(c, vec3(0.3, 0.55, 0.15))), c, uSat); gl_FragColor = vec4(c * edge * uAlpha, 1.0); }`;
 
   // 流れ星: 画面上の帯（4 頂点）。aT は 0（尾）〜1（頭）
   const MET_VS = `attribute vec2 aXY; attribute float aT; varying float vT; void main(){ vT = aT; gl_Position = vec4(aXY, 0.0, 1.0); }`;
@@ -320,7 +320,7 @@ void main(){ vec2 e = min(vUV, 1.0 - vUV); float edge = smoothstep(0.0, 0.06, mi
     const ql = program(gl, QL_VS, QL_FS, ['uColor', 'uCore', 'uDash']);
     const sp = program(gl, SP_VS, SP_FS, ['uClip', 'uHalf', 'uRot', 'uMode', 'uColor', 'uAlpha', 'uR', 'uSunDir', 'uAspect', 'uRing', 'uBands', 'uTex', 'uHasTex', 'uEarth', 'uOcc']);
     const me = program(gl, MET_VS, MET_FS, ['uA']);
-    const im = program(gl, IMG_VS, IMG_FS, ['uClip', 'uBx', 'uBy', 'uTex', 'uAlpha']);
+    const im = program(gl, IMG_VS, IMG_FS, ['uClip', 'uBx', 'uBy', 'uTex', 'uAlpha', 'uSat']);
     const ar = program(gl, ART_VS, ART_FS, ['uHz', 'uView', 'uScale', 'uTex', 'uColor', 'uAlpha', 'uMask', 'uHills']);
     const mw = MW ? milkyUniforms(MW) : null;
     const maxPt = (gl.getParameter(gl.ALIASED_POINT_SIZE_RANGE) || [1, 64])[1];
@@ -387,6 +387,9 @@ void main(){ vec2 e = min(vUV, 1.0 - vUV); float edge = smoothstep(0.0, 0.06, mi
       gl.drawArrays(gl.POINTS, 0, B.n);
     }
 
+    /** 双眼鏡・望遠鏡で足す暗い星（企画書 75 の 6）。押したときに 1 回だけ */
+    let faintBufs = null;
+    function setFaint(list) { if (!faintBufs) faintBufs = mk(starAttribs(list)); }
     /** 惑星（その日の赤道座標の単位ベクトル。地平への行列は H）を差し替える */
     function setBodies(list) {
       const a = starAttribs(list);
@@ -478,7 +481,7 @@ void main(){ vec2 e = min(vUV, 1.0 - vUV); float edge = smoothstep(0.0, 0.06, mi
       const ph = photos[o.id]; if (!ph || !ph.tex) return;
       const k = opts.instantTextures ? 1 : Math.min(1, (now - ph.at) / 800);
       use(im); bindAttr(im, 'aC', quad, 2);
-      gl.uniform2fv(im.U.uClip, o.clip); gl.uniform2fv(im.U.uBx, o.bx); gl.uniform2fv(im.U.uBy, o.by); gl.uniform1f(im.U.uAlpha, (o.alpha == null ? 1 : o.alpha) * k);
+      gl.uniform2fv(im.U.uClip, o.clip); gl.uniform2fv(im.U.uBx, o.bx); gl.uniform2fv(im.U.uBy, o.by); gl.uniform1f(im.U.uAlpha, (o.alpha == null ? 1 : o.alpha) * k); gl.uniform1f(im.U.uSat, o.sat == null ? 1 : o.sat);
       gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, ph.tex); gl.uniform1i(im.U.uTex, 0);
       gl.blendFunc(gl.ONE, gl.ONE); gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     }
@@ -597,6 +600,7 @@ void main(){ vec2 e = min(vUV, 1.0 - vUV); float edge = smoothstep(0.0, 0.06, mi
         gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
       } else {
         drawPoints(starBufs, S.toColumnMajor(st.starM), common);
+        if (st.faint && faintBufs) drawPoints(faintBufs, S.toColumnMajor(st.starM), Object.assign({}, common, { twinkle: 0 }));
         if (bodyBufs) drawPoints(bodyBufs, S.toColumnMajor(st.H), Object.assign({}, common, { limit: 9, twinkle: 0 }));
       }
       // 星座線（GPU の細い線。ポスター）
@@ -655,7 +659,7 @@ void main(){ vec2 e = min(vUV, 1.0 - vUV); float edge = smoothstep(0.0, 0.06, mi
     /** 画面の 1° が何 CSS px か（画面の中心で） */
     function pxPerDeg(st, cssW, cssH) { return st.zoom / Math.tan(st.fovDeg * Math.PI / 720) * Math.min(cssW, cssH) / 2 * (Math.PI / 180) / 2; }
 
-    return { gl, draw, setBodies, setLines, project, pxPerDeg, setArt, loadArt, artState, loadPhoto, photoState, trailMax: !!minmax, textures: () => ({ milky: !!tex.milky, moon: !!tex.moon }) };
+    return { gl, draw, setBodies, setLines, project, pxPerDeg, setArt, loadArt, artState, loadPhoto, photoState, trailMax: !!minmax, setFaint, faintCount: () => (faintBufs ? faintBufs.n : 0), textures: () => ({ milky: !!tex.milky, moon: !!tex.moon }) };
   }
 
   root.NightRender = { create, viewMatrix, starAttribs, milkyUniforms, MWN };

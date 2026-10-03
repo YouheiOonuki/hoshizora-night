@@ -90,6 +90,7 @@ export function page(lang, month) {
 <body class="app">
 <canvas id="sky" tabindex="0" aria-label="${T.skyLabel}"></canvas>
 <div id="labels" class="labels" aria-hidden="true"></div>
+<div id="scopeMask" class="scopemask" aria-hidden="true" hidden></div>
 <div id="dirs" class="dirs" aria-hidden="true">${T.dirs.map((d, i) => `<span class="${i % 2 ? 'sub' : 'main'}">${d}</span>`).join('')}</div>
 <header class="hud">
   <p class="clock"><span id="date"></span><span id="time"></span></p>
@@ -112,6 +113,7 @@ export function page(lang, month) {
     <button id="artBtn" type="button" class="wow" aria-pressed="false">${lbl(WT.bArt)}</button>
     <button id="dsoBtn" type="button" class="wow" aria-pressed="false" aria-controls="dsoPanel">${lbl(WT.bDso)}</button>
     <button id="trailBtn" type="button" class="wow" aria-pressed="false">${lbl(WT.bTrail)}</button>
+    <button id="scopeBtn" type="button" class="wow" aria-pressed="false">${lbl(WT.bScope)}</button>
     <button id="lines" type="button" aria-pressed="true">${lbl(T.bLines)}</button>
     <button id="names" type="button" aria-pressed="true">${lbl(T.bNames)}</button>
     <button id="timeBtn" type="button" aria-pressed="false" aria-controls="timePanel">${lbl(T.bTime)}</button>
@@ -123,7 +125,7 @@ export function page(lang, month) {
     <button id="share" type="button">${lbl(T.bShare)}</button>
     <a id="light" href="${light}">${T.light}</a>
   </nav>
-  <p class="credit"><a href="${L.CREDITS.milky.href}" rel="noopener">${L.CREDITS.milky[lang]}</a> · <a href="${L.CREDITS.moon.href}" rel="noopener">${L.CREDITS.moon[lang]}</a><span id="artCredit" hidden> · <a href="${ART_CREDIT.href}" rel="noopener">${ART_CREDIT[lang]}</a></span></p>
+  <p class="credit"><a href="${L.CREDITS.milky.href}" rel="noopener">${L.CREDITS.milky[lang]}</a> · <a href="${L.CREDITS.moon.href}" rel="noopener">${L.CREDITS.moon[lang]}</a><span id="hipCredit" hidden> · <a href="https://www.cosmos.esa.int/web/hipparcos/catalogues" rel="noopener">${lbl(WT.hipCredit)}</a></span><span id="artCredit" hidden> · <a href="${ART_CREDIT.href}" rel="noopener">${ART_CREDIT[lang]}</a></span></p>
 </div>
 <div id="timePanel" class="panel" role="group" aria-label="${T.timePanel}" hidden>
   <div class="panel-top"><span id="tpNow" class="tpnow"></span><button type="button" class="icon close" data-close="timePanel" aria-label="${T.close}">×</button></div>

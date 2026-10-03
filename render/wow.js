@@ -7,7 +7,8 @@
      3 星座絵（ヘヴェリウス 1690。位置合わせと網は tools/build-art.py → render/art.js。押したときに初めて読む）
      4 星雲・星団へのズーム（ESA/Hubble の実写。tools/build-dso.py → render/dso.js。画像の向きと大きさを空に合わせる）
      5 星の軌跡（時間を早回しし、星を別の絵に描きためて少しずつ暗くする。動きを減らす設定では 2 時間分を 1 枚に）
-   （6〜8 は順に足す） */
+     6 双眼鏡・望遠鏡（円い視野で拡大し、限界等級を口径の分だけ上げる。暗い星はヒッパルコス星表 render/hip.js を押したときに読む）
+   （7〜8 は順に足す） */
 (function (root) {
   const W = (typeof module !== 'undefined') ? require('./wmm.js') : root.NightWMM;
   // eslint-disable-next-line no-undef
@@ -185,6 +186,26 @@
   /** 動きを減らす設定のときの、1 枚に描く時刻（ms の配列。いまから過去へ） */
   const trailTimes = (ms) => Array.from({ length: TRAIL.staticSteps + 1 }, (_, k) => ms - k * TRAIL.staticHours * 3600e3 / TRAIL.staticSteps);
 
+  /* ---------- 6 双眼鏡・望遠鏡 ----------
+     限界等級は、肉眼（瞳 7 mm）より光を集める面積が (口径/7)² 倍なので 5·log10(口径/7) 等だけ暗い星まで（等級の定義からの換算）。
+     ただし描ける星はヒッパルコス星表の 8.5 等まで（catalogLimit）。実視界は双眼鏡 7°（7×50 の一般的な値）、望遠鏡 1.2° */
+  const SCOPE = { modes: { bino: { power: 7, aperture: 50, field: 7.0 }, tele: { power: 40, aperture: 80, field: 1.2 } },
+    eyePupil: 7, catalogLimit: 8.5, frac: 0.45, hipparcos: true };
+  const scopeLimit = (eyeLimit, aperture) => Math.min(SCOPE.catalogLimit, eyeLimit + 5 * Math.log10(aperture / SCOPE.eyePupil));
+  /** 円い視野（画面の短い辺 × frac の半径）にちょうど実視界が入る拡大。描画器と同じ縮尺の式 */
+  const scopeZoom = (field, fovDeg) => 2 * SCOPE.frac * 4 * Math.tan(fovDeg * Math.PI / 720) / (field * D);
+  /** render/hip.js の base64 → [{ v: J2000 の単位ベクトル, mag, bv }]。decode は atob か Buffer */
+  function decodeHip(H, decode) {
+    const bin = decode(H.b64), out = [];
+    for (let i = 0; i < H.n; i++) {
+      const o = i * 6, ra = ((bin[o] | (bin[o + 1] << 8)) / 65536) * 2 * Math.PI;
+      let de = bin[o + 2] | (bin[o + 3] << 8); if (de > 32767) de -= 65536;
+      const dec = de / 32767 * Math.PI / 2, mag = 6 + bin[o + 4] / 100, b = bin[o + 5] > 127 ? bin[o + 5] - 256 : bin[o + 5];
+      out.push({ v: vecRD(ra, dec), mag, bv: b / 50 });
+    }
+    return out;
+  }
+
   /* ---------- 文字（新しい UI の文字列。英語は k132-wow2-en-review.md でオーナーの承認待ち） ---------- */
   const TEXT = {
     ja: {
@@ -212,6 +233,13 @@
       trailOn: ['時間を 600 倍で進めて、星の動いたあとを光の筋で残します', 'ほしの うごいた あとが ひかりの すじに なるよ'],
       trailStatic: ['動きを減らす設定なので、2 時間分の軌跡を 1 枚で出します', '2じかんぶんの ほしの あとだよ'],
       trailSlow: ['この端末では使えません（描くのが追いつかないため）', 'この たんまつでは つかえないよ'],
+      bScope: ['双眼鏡', 'そうがんきょう'],
+      bScopeTele: ['望遠鏡', 'ぼうえんきょう'],
+      scopeBino: [(m) => `双眼鏡（7×50・実視界 7°）。${m.toFixed(1)} 等の星まで`, (m) => `そうがんきょう。${m.toFixed(1)}とうの ほしまで みえるよ`],
+      scopeTele: [(m) => `望遠鏡（口径 80 mm・40 倍・実視界 1.2°）。${m.toFixed(1)} 等の星まで`, (m) => `ぼうえんきょう。${m.toFixed(1)}とうの ほしまで みえるよ`],
+      scopeOff: ['肉眼に戻りました', 'めで みる そらに もどったよ'],
+      scopeCap: ['（描ける星は星表の 8.5 等まで）', ''],
+      hipCredit: ['暗い星: ヒッパルコス星表（Credit: ESA、CC BY-NC 3.0 IGO）', 'くらい ほし: ESA'],
     },
     en: {
       bGyro: 'Gyro',
@@ -238,9 +266,16 @@
       trailOn: 'Time runs 600× faster and the stars leave streaks of light',
       trailStatic: 'Reduced motion is on, so two hours of trails are shown as one still picture',
       trailSlow: 'Not available on this device (it cannot draw fast enough)',
+      bScope: 'Binoculars',
+      bScopeTele: 'Telescope',
+      scopeBino: (m) => `Binoculars (7×50, 7° field). Stars to magnitude ${m.toFixed(1)}`,
+      scopeTele: (m) => `Telescope (80 mm, 40×, 1.2° field). Stars to magnitude ${m.toFixed(1)}`,
+      scopeOff: 'Back to naked eye',
+      scopeCap: '(the star catalog goes to magnitude 8.5)',
+      hipCredit: 'Faint stars: Hipparcos Catalogue (Credit: ESA, CC BY-NC 3.0 IGO)',
     },
   };
 
-  const api = { magnetic, decimalYear, declination, deviceView, compassOffset, GYRO, needCalibration, follow, LIGHT, skyMag, nelm, lightPollution, photoCorners, ZOOM_DEEP, zoomFor, altOf, sunAlt, viewTime, TRAIL, trailFade, trailTimes, TEXT };
+  const api = { magnetic, decimalYear, declination, deviceView, compassOffset, GYRO, needCalibration, follow, LIGHT, skyMag, nelm, lightPollution, photoCorners, ZOOM_DEEP, zoomFor, altOf, sunAlt, viewTime, TRAIL, trailFade, trailTimes, SCOPE, scopeLimit, scopeZoom, decodeHip, TEXT };
   if (typeof module !== 'undefined') module.exports = api; else root.NightWow = api;
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -216,6 +216,41 @@ test('5 星の軌跡: 600 倍の早回し、暗くする量は 1/255 単位で�
   assert.ok(app.includes('const twinkleOn = !reduce.matches && !trail;'));
 });
 
+/* ---------- 6 双眼鏡・望遠鏡 ---------- */
+test('6 双眼鏡・望遠鏡: 限界等級は口径の分だけ（5·log10(口径/7)）上がり星表の 8.5 等で止まる。実視界がちょうど円い視野に入る拡大', () => {
+  // 田舎（6.58 等）: 50 mm で +4.27 等 → 星表の 8.5 等で止まる。都会（3.54 等）: 50 mm で 7.81 等
+  assert.strictEqual(W.scopeLimit(6.58, 50), 8.5);
+  assert.ok(Math.abs(W.scopeLimit(W.lightPollution(1).limit, 50) - (3.5413 + 5 * Math.log10(50 / 7))) < 1e-3);
+  assert.ok(W.scopeLimit(3.5, 80) > W.scopeLimit(3.5, 50));
+  // 拡大: 描画器の 1° あたりの画素（zoom/tan(fov/4)·短い辺/2·(π/180)/2）× 実視界 ＝ 円の直径（短い辺 × 0.9）
+  for (const m of Object.values(W.SCOPE.modes)) {
+    const z = W.scopeZoom(m.field, 100), minSide = 390;
+    const pxPerDeg = z / Math.tan(100 * Math.PI / 720) * minSide / 2 * (Math.PI / 180) / 2;
+    assert.ok(Math.abs(pxPerDeg * m.field - 2 * W.SCOPE.frac * minSide) < 1e-6);
+    assert.ok(z <= W.ZOOM_DEEP);
+  }
+});
+
+test('6 暗い星: ヒッパルコス星表（ESA、CC BY-NC 3.0 IGO）の 6.5〜8.5 等。BSC の星と重ならず、位置の丸めは 0.006° 以内。押したときに読む', () => {
+  const { HIP } = require('../render/hip.js');
+  const stars = W.decodeHip(HIP, (b) => Buffer.from(b, 'base64'));
+  assert.strictEqual(stars.length, HIP.n);
+  assert.ok(HIP.n > 50000);
+  for (const s of stars) { assert.ok(s.mag > 6.5 && s.mag <= 8.51, String(s.mag)); assert.ok(Math.abs(Math.hypot(...s.v) - 1) < 1e-9); }
+  // 明るい順に並ぶ
+  for (let i = 1; i < stars.length; i++) assert.ok(stars[i].mag >= stars[i - 1].mag - 1e-9);
+  // 丸め: 赤経 360°/65536 ＝ 0.0055°、赤緯 90°/32767 ＝ 0.0027°（どちらも 0.1° より十分小さい）
+  assert.ok(360 / 65536 < 0.006 && 90 / 32767 < 0.003);
+  const src = read('render/hip.js'), tool = read('tools/build-hip.py');
+  assert.ok(src.includes('Credit: ESA') && src.includes('CC BY-NC 3.0 IGO') && tool.includes('I/239') && tool.includes('cosmos.esa.int/web/hipparcos'));
+  for (const p of ['index.html', 'en/index.html']) {
+    const html = read(p);
+    assert.ok(!html.includes('src="/hoshizora-night/render/hip.js"') && html.includes('id="scopeBtn"') && html.includes('id="scopeMask"') && html.includes('id="hipCredit" hidden'), p);
+  }
+  const app = read('app/night.js');
+  assert.ok(app.includes("sc.src = '/hoshizora-night/render/hip.js'") && app.includes("const faintOn = () => faintState === 'ok' && st.stage === 'full'"));
+});
+
 /* ---------- 共通 ---------- */
 test('文字: 日英で項目が揃い、英語はすべて k132-wow2-en-review.md の承認待ちの文（新しく書いた英語はここだけ）', () => {
   assert.deepStrictEqual(Object.keys(W.TEXT.en).sort(), Object.keys(W.TEXT.ja).sort());

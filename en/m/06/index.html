@@ -33,6 +33,7 @@
 <body class="app">
 <canvas id="sky" tabindex="0" aria-label="Night sky. Drag to look around, pinch to zoom, tap a constellation for notes. Arrow keys also work."></canvas>
 <div id="labels" class="labels" aria-hidden="true"></div>
+<div id="scopeMask" class="scopemask" aria-hidden="true" hidden></div>
 <div id="dirs" class="dirs" aria-hidden="true"><span class="main">N</span><span class="sub">NE</span><span class="main">E</span><span class="sub">SE</span><span class="main">S</span><span class="sub">SW</span><span class="main">W</span><span class="sub">NW</span></div>
 <header class="hud">
   <p class="clock"><span id="date"></span><span id="time"></span></p>
@@ -55,6 +56,7 @@
     <button id="artBtn" type="button" class="wow" aria-pressed="false">Constellation art</button>
     <button id="dsoBtn" type="button" class="wow" aria-pressed="false" aria-controls="dsoPanel">Nebulae</button>
     <button id="trailBtn" type="button" class="wow" aria-pressed="false">Star trails</button>
+    <button id="scopeBtn" type="button" class="wow" aria-pressed="false">Binoculars</button>
     <button id="lines" type="button" aria-pressed="true">Lines</button>
     <button id="names" type="button" aria-pressed="true">Names</button>
     <button id="timeBtn" type="button" aria-pressed="false" aria-controls="timePanel">Time</button>
@@ -66,7 +68,7 @@
     <button id="share" type="button">Share</button>
     <a id="light" href="/hoshizora-sanpo/en/">Light version</a>
   </nav>
-  <p class="credit"><a href="https://www.eso.org/public/images/eso0932a/" rel="noopener">Milky Way: ESO/S. Brunier</a> · <a href="https://svs.gsfc.nasa.gov/4720/" rel="noopener">Moon: NASA SVS</a><span id="artCredit" hidden> · <a href="https://commons.wikimedia.org/wiki/Category:Firmamentum_Sobiescianum,_sive_uranographia" rel="noopener">Constellation art: Hevelius, Firmamentum Sobiescianum (1690), public domain, via Wikimedia Commons</a></span></p>
+  <p class="credit"><a href="https://www.eso.org/public/images/eso0932a/" rel="noopener">Milky Way: ESO/S. Brunier</a> · <a href="https://svs.gsfc.nasa.gov/4720/" rel="noopener">Moon: NASA SVS</a><span id="hipCredit" hidden> · <a href="https://www.cosmos.esa.int/web/hipparcos/catalogues" rel="noopener">Faint stars: Hipparcos Catalogue (Credit: ESA, CC BY-NC 3.0 IGO)</a></span><span id="artCredit" hidden> · <a href="https://commons.wikimedia.org/wiki/Category:Firmamentum_Sobiescianum,_sive_uranographia" rel="noopener">Constellation art: Hevelius, Firmamentum Sobiescianum (1690), public domain, via Wikimedia Commons</a></span></p>
 </div>
 <div id="timePanel" class="panel" role="group" aria-label="Time travel" hidden>
   <div class="panel-top"><span id="tpNow" class="tpnow"></span><button type="button" class="icon close" data-close="timePanel" aria-label="Close">×</button></div>
