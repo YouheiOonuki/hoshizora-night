@@ -267,8 +267,28 @@
     return n;
   }
 
+  /* ---------- 空の上の名前と画面の文字の重なり（K132 の続き: スマホで左上の文字と星座名が重なって読めない） ----------
+     名前の札（box: x,y,w,h）が、よけるべき画面の部品（avoid: x,y,r,b の矩形）にかかるとき、上下に少しずらして逃がす。
+     ずらす量が LABEL_AVOID.shift を超えるなら隠す（null）。かからなければ 0 */
+  const LABEL_AVOID = { pad: 4, shift: 26 };
+  function hitRect(box, a, pad) { return box.x < a.r + pad && a.x - pad < box.x + box.w && box.y < a.b + pad && a.y - pad < box.y + box.h; }
+  function avoidShift(box, avoid, opt) {
+    const pad = (opt && opt.pad != null) ? opt.pad : LABEL_AVOID.pad, max = (opt && opt.shift != null) ? opt.shift : LABEL_AVOID.shift;
+    const hits = avoid.filter((a) => hitRect(box, a, pad));
+    if (!hits.length) return 0;
+    const cands = [];
+    for (const a of hits) { cands.push(a.b + pad - box.y + 0.5); cands.push(a.y - pad - (box.y + box.h) - 0.5); }
+    cands.sort((p, q) => Math.abs(p) - Math.abs(q));
+    for (const dy of cands) {
+      if (Math.abs(dy) > max) break;
+      const moved = { x: box.x, y: box.y + dy, w: box.w, h: box.h };
+      if (!avoid.some((a) => hitRect(moved, a, pad))) return dy;
+    }
+    return null;
+  }
+
   const api = { bvTemp, blackbody, smooth, dayFactor, starFactor, moonLight, EXTINCTION, airmass, extinctionMag, limitMag, GAL, galactic, milkyUV, CREDITS, FLY, flyEase, wrapPi, SPEEDS, moonTopo,
     SKY, hex, sunAltDeg, twilightWeight, haloRadius, starColor, saturation, MAX_SAT, TWINKLE, twinkles, twinkleHz, SPEED, ZOOM, LINE,
-    FPS, median, nextStage, STAR_LIMIT, INTRO, METEOR, meteorWait, hillDeg, LINES_ALL_ALPHA, coordText, placeText, kmBetween, formatHash, parseHash, localMonth, shareUrl, SHOWERS, tonight, nightOf, TEXT, wordCount };
+    FPS, median, nextStage, STAR_LIMIT, INTRO, METEOR, meteorWait, hillDeg, LINES_ALL_ALPHA, coordText, placeText, kmBetween, formatHash, parseHash, localMonth, shareUrl, SHOWERS, tonight, nightOf, TEXT, wordCount, LABEL_AVOID, avoidShift };
   if (typeof module !== 'undefined') module.exports = api; else root.NightLook = api;
 })(typeof window !== 'undefined' ? window : globalThis);
