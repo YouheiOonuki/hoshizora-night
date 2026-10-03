@@ -108,7 +108,7 @@
   /* ---------------- 描画器 ---------------- */
   let r;
   const TEX = { milky: '/hoshizora-night/render/milkyway.jpg', moon: '/hoshizora-night/render/moon.jpg' };
-  try { r = R.create(canvas, stars, MW, { textures: params.get('tex') === 'off' ? {} : TEX, onTexture: () => { dirty = true; texSettle = performance.now() + 1100; } }); } catch (e) { showLight(); return; }
+  try { r = R.create(canvas, stars, MW, { instantTextures: reduce.matches, textures: params.get('tex') === 'off' ? {} : TEX, onTexture: () => { dirty = true; texSettle = performance.now() + 1100; } }); } catch (e) { showLight(); return; }
   let texSettle = 0;
   const dprCap = () => Math.min(window.devicePixelRatio || 1, 2);
   function fit() {
@@ -232,7 +232,7 @@
       if (now - probe.start >= L.FPS.probeMs && probe.dts.length) {
         const fps = 1000 / L.median(probe.dts), next = L.nextStage(st.stage, fps);
         window.__night.fps.push(Math.round(fps * 10) / 10);
-        if (next === 'reduced' && st.stage === 'full') { st.stage = next; st.limit = L.FPS.reducedMag; probe.start = now; probe.dts = []; }
+        if (next === 'reduced' && st.stage === 'full') { st.stage = next; st.limit = L.FPS.reducedMag; probe.start = now; probe.dts = []; if (trail) setTrail(false); if (scope) scopeUi(); }
         else { if (next === 'light') { st.stage = next; showLight(); } probe.on = false; }
         window.__night.stage = st.stage;
       }

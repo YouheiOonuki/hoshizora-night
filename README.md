@@ -30,6 +30,23 @@ yorozu-craft のツールの1つです（共通ルールは [youheioonuki.github
 - WebGL が使えない端末では通常版（`/hoshizora-sanpo/`、英語の画面なら `/hoshizora-sanpo/en/`）へ送る
 - 入力（場所・時刻）は端末の外に出さない。保存（localStorage）は使わない（場所と時刻は URL の `#` だけ）。広告なし（AdSense は所有確認の meta だけ）・音なし
 
+## フル版だけの 8 つ（企画書 75、オーナー決定 2026-10-03）
+
+軽量版と差別化する機能。決まりは `render/wow.js`（Node でもテストできる）、画面は `app/night.js`、描画は `render/night-gl.js`。下のメニューの ✦ 付きのボタン。設計・出典・ライセンスは yorozu-plans の `docs/75_フル版の差別化.md`（枝 `claude/plan-75`）。
+
+1. **ジャイロ**（スマホだけ）: DeviceOrientationEvent で、空にかざした向きの星。iPhone は押したときに許可を求め、拒否・非対応・イベントが来ないならドラッグのまま。磁北 → 真北は WMM2025（`render/wmm.js`、NOAA、パブリックドメイン。公式の検算値 100 点と一致）の偏角、iPhone は webkitCompassHeading で補正（水平に近いときだけ測り直す・精度が悪いと 8 の字の案内）。ドラッグすると止まる
+2. **街明かり**: 田舎〜都会のつまみで空の明るさ 21.9〜17.5 等/平方秒角 → 限界等級（Schaefer 1990 の式）・天の川・空の色（橙のかすみ）が連動。田舎は今までと同じ見え方
+3. **星座絵**: ヘヴェリウス『Firmamentum Sobiescianum』（1690、Wikimedia Commons のパブリックドメイン）をオリオン・ふたご・しし・おおぐまに位置合わせして淡く重ねる（`tools/build-art.py` → `render/art.js`・`render/art/*.jpg`。押したときに初めて読む）
+4. **星雲・星団へのズーム**: M42・M45・M31 の ESA/Hubble の実写（CC BY 4.0。`tools/build-dso.py` → `render/dso.js`・`render/dso/*.jpg`）を向きと大きさを空に合わせて重ね、各ページの Credit の文をそのまま出す。天体をタップ、または一覧から（見にくい時刻なら見やすい時刻へ）
+5. **星の軌跡**: 600 倍の早回しで、星を別の絵に描きためて（明るい方を残す合成）少しずつ暗くする。動きを減らす設定では 2 時間分を止まった 1 枚に。遅い端末の段階では使わない
+6. **双眼鏡・望遠鏡**: 円い視野（7×50・実視界 7°／口径 80 mm・40 倍・1.2°）で拡大し、限界等級を 5·log10(口径/7) 上げる。暗い星はヒッパルコス星表 6.5〜8.5 等（`tools/build-hip.py` → `render/hip.js`、Credit: ESA、CC BY-NC 3.0 IGO。押したときに読む。使うかは D263）。視野の星雲は色を抜いて淡く
+7. **天文イベント**: 次の皆既月食（2029-01-01）と流星群の極大（放射点は通常版の表と同じ 3 つ）を 600 倍で再生。日付は `engine/official-events.js` の写し、月食の時刻はダンジョンの規則で計算（2026-03-03 の国立天文台の発表と 5 分以内）。月に地球の影、流れ星は放射点から。動きを減らす設定は見どころの時刻で止める
+8. **日の出・日の入りの空の色**: 1 回散乱の近似（Bruneton & Neyret 2008 の Rayleigh・Mie の係数）で昼の青・夕焼け・薄明。ポスターは前の色のまま
+
+- 同じ星が同じ位置（`tests/match.test.js` はそのまま）。星座絵・実写・暗い星の位置は `tests/wow.test.js`
+- 新しい英語の文はオーナーの承認待ち（一覧は企画書 75。`render/wow.js` の `TEXT.en`）
+- 画面の確かめとスクショ（スマホ・PC、機能ごと）: `NODE_PATH=$(npm root -g) PLAYWRIGHT_BROWSERS_PATH=<ブラウザの置き場> node tools/check-wow2.cjs <出力先> [番号…]`
+
 ## 生まれた日の星空ポスター（K43、`/hoshizora-night/poster/`）
 
 企画書は yorozu-plans の `docs/72_生まれた日の星空ポスター.md`（枝 `claude/plan-72`）。日本語だけ。広告なし。
@@ -114,6 +131,9 @@ yorozu-craft のツールの1つです（共通ルールは [youheioonuki.github
 | 見せ方を変えたとき | OG 画像 12 枚を撮り直し、受け入れを確かめる | `node tools/build-og.cjs`・`node tools/check-k132.cjs`（下の「確かめ方」） |
 | 天の川の画像・月の地図を作り直すとき（まれ。元の画像の出典・ライセンスが変わったときも） | 出典のページのクレジットと使用条件を読み直す | `python3 tools/build-textures.py <eso0932a.jpg> <lroc_color_2k.jpg>`・`render/look.js` の `CREDITS` |
 | 都道府県庁が移ったとき（まれ） | 住所を地理院地図の住所検索で引き直す | `render/prefectures.js` |
+| 2030 年（WMM2025 の期限）・NOAA が WMM2030 を出したとき | 係数を取り直す | `node tools/build-wmm.mjs <WMM.COF>`・`tests/fixtures/` の検算値 |
+| 国立天文台が次の暦要項（月食の時刻）を出したとき | 再生の時刻（このサイトの計算）と発表を比べる | `render/wow.js` の `eclipseContacts`・`tests/wow.test.js` |
+| 星座絵・実写・暗い星の出典のページが変わったとき（まれ） | ライセンスとクレジットを読み直す | `tools/build-art.py`・`tools/build-dso.py`・`tools/build-hip.py` |
 
 ## ファイル
 
@@ -151,8 +171,15 @@ yorozu-craft のツールの1つです（共通ルールは [youheioonuki.github
 | `404.html` | ツール配下の存在しない URL で出るページ（サイト共通のもの） |
 | `favicon.svg` | アイコン（通常版と同じ） |
 | `apple-touch-icon.png` | テンプレートの仮の絵（公開までに作り直す） |
+| `render/wow.js` | 企画書 75 の 8 つの決まり（偏角・街明かり・実写の向き・軌跡・双眼鏡・月食と再生・大気散乱）と文字（日英） |
+| `render/wmm.js` | WMM2025 の係数（`tools/build-wmm.mjs` の生成物） |
+| `render/art.js`・`render/art/` | 星座絵の網と画像（`tools/build-art.py` の生成物） |
+| `render/dso.js`・`render/dso/` | 星雲・星団の実写の位置・向き・出典と画像（`tools/build-dso.py` の生成物） |
+| `render/hip.js` | 双眼鏡・望遠鏡で足す暗い星（`tools/build-hip.py` の生成物） |
+| `tools/check-wow2.cjs` | 企画書 75 の画面の確かめとスクショ（Playwright） |
 | `tests/*.test.js` | テスト（`node --test tests/*.test.js`。`.github/workflows/test.yml` で push・PR のたびに自動実行） |
 
 ## ライセンス
 
 MIT License（`LICENSE`）。星表は Yale Bright Star Catalogue, 5th Revised Ed.（Hoffleit & Warren 1991）から通常版が作ったもの（`engine/catalog.js` の冒頭）。
+企画書 75 で足した画像とデータ: 星座絵はヘヴェリウス（1690、パブリックドメイン、Wikimedia Commons）、星雲・星団の実写は ESA/Hubble（CC BY 4.0、各画像の Credit を画面に）、暗い星はヒッパルコス星表（Credit: ESA、CC BY-NC 3.0 IGO）、偏角は WMM2025（NOAA、パブリックドメイン）。
