@@ -108,7 +108,7 @@ test('初回の読み込み: JS は gzip 後 600 KB 以内、画像は 1 MB 以�
 });
 
 test('外向きの要求を出すコードが無い（fetch・XMLHttpRequest・sendBeacon・WebSocket・EventSource）', () => {
-  for (const f of ['app/night.js', 'app/poster.js', 'render/poster.js', 'render/look.js', 'render/info.js', 'render/night-gl.js', 'render/sky.js', 'render/gate.js', 'render/prefectures.js', 'render/catalog-extra.js']) {
+  for (const f of ['app/night.js', 'app/poster.js', 'render/poster.js', 'render/look.js', 'render/wow.js', 'render/wmm.js', 'render/info.js', 'render/night-gl.js', 'render/sky.js', 'render/gate.js', 'render/prefectures.js', 'render/catalog-extra.js']) {
     const src = read(f).replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
     assert.ok(!/\bfetch\s*\(|XMLHttpRequest|sendBeacon|WebSocket|EventSource|https?:\/\//.test(src), f);
   }
@@ -126,7 +126,7 @@ test('英語の画面の文字は TEXT.en・企画書 75 の NightWow.TEXT.en（
   const attrs = [...body.matchAll(/aria-label="([^"]+)"/g)].map((m) => m[1]);
   const flat = (v) => (v && typeof v === 'object') ? Object.values(v).flatMap(flat) : [v];
   const W = require('../render/wow.js');
-  const allowed = new Set([...flat(L.TEXT.en), ...flat(W.TEXT.en), ...flat(W.CREDITS_EN || []), '日本語', 'Web Planetarium', L.CREDITS.milky.en, L.CREDITS.moon.en]);
+  const allowed = new Set([...flat(L.TEXT.en), ...flat(W.TEXT.en), require('../render/art.js').CREDIT.en, '日本語', 'Web Planetarium', L.CREDITS.milky.en, L.CREDITS.moon.en]);
   for (const s of [...texts, ...attrs]) assert.ok(allowed.has(s), `TEXT.en に無い文字列: ${s}`);
 });
 

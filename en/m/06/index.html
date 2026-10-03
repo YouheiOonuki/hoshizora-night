@@ -52,6 +52,7 @@
   <nav id="dock" class="dock" aria-label="Menu">
     <button id="gyro" type="button" class="wow" aria-pressed="false" hidden>Gyro</button>
     <button id="lightBtn" type="button" class="wow" aria-pressed="false" aria-controls="lightPanel">City lights</button>
+    <button id="artBtn" type="button" class="wow" aria-pressed="false">Constellation art</button>
     <button id="lines" type="button" aria-pressed="true">Lines</button>
     <button id="names" type="button" aria-pressed="true">Names</button>
     <button id="timeBtn" type="button" aria-pressed="false" aria-controls="timePanel">Time</button>
@@ -63,7 +64,7 @@
     <button id="share" type="button">Share</button>
     <a id="light" href="/hoshizora-sanpo/en/">Light version</a>
   </nav>
-  <p class="credit"><a href="https://www.eso.org/public/images/eso0932a/" rel="noopener">Milky Way: ESO/S. Brunier</a> · <a href="https://svs.gsfc.nasa.gov/4720/" rel="noopener">Moon: NASA SVS</a></p>
+  <p class="credit"><a href="https://www.eso.org/public/images/eso0932a/" rel="noopener">Milky Way: ESO/S. Brunier</a> · <a href="https://svs.gsfc.nasa.gov/4720/" rel="noopener">Moon: NASA SVS</a><span id="artCredit" hidden> · <a href="https://commons.wikimedia.org/wiki/Category:Firmamentum_Sobiescianum,_sive_uranographia" rel="noopener">Constellation art: Hevelius, Firmamentum Sobiescianum (1690), public domain, via Wikimedia Commons</a></span></p>
 </div>
 <div id="timePanel" class="panel" role="group" aria-label="Time travel" hidden>
   <div class="panel-top"><span id="tpNow" class="tpnow"></span><button type="button" class="icon close" data-close="timePanel" aria-label="Close">×</button></div>

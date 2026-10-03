@@ -98,6 +98,32 @@ const WINTER = '#35.69,139.69,1800021600';  // 2027-01-15 23:00 JST 東京（冬
     R.features[2] = F;
   }
 
+  /* 3 星座絵: 押すまで画像を読まない → 押すと 4 枚読んで重なる。出典の行が出る */
+  if (want(3)) {
+    const F = { shots: [] };
+    for (const [dev, tag, url] of [[PHONE, 'phone', `?probe=off&view=175,40${WINTER}`], [PC, 'pc', `?probe=off&view=170,38${WINTER}`]]) {
+      const ctx = await ctxOf(dev, { reducedMotion: 'reduce' }), p = await ctx.newPage(), reqs = [], errors = [];
+      p.on('request', (q) => reqs.push(q.url())); p.on('pageerror', (e) => errors.push(e.message));
+      await p.goto(base + url); await ready(p); await p.waitForTimeout(600);
+      const before = reqs.filter((u) => /render\/art/.test(u)).length;
+      await p.click('#artBtn');
+      await p.waitForFunction(() => { const s = window.__night.artState(); return s.ori && s.gem && s.leo && s.uma; }, null, { timeout: 15000 });
+      await p.waitForTimeout(1200);
+      F[tag] = { before, after: reqs.filter((u) => /render\/art/.test(u)).length, credit: await p.isVisible('#artCredit'), errors };
+      F.shots.push(await shot(p, `3-art-${tag}-winter.png`));
+      if (tag === 'pc') {   // 春の空（しし座・おおぐま座）
+        await p.evaluate(() => { location.hash = '#35.69,139.69,1807875000'; }); await p.reload(); await ready(p);
+        await p.click('#artBtn'); await p.waitForFunction(() => window.__night.artState().leo, null, { timeout: 15000 });
+        await p.evaluate(() => { window.__night.view.az = 200 * Math.PI / 180; window.__night.view.alt = 50 * Math.PI / 180; });
+        await p.waitForTimeout(1200);
+        F.shots.push(await shot(p, '3-art-pc-spring.png'));
+      }
+      await ctx.close();
+    }
+    F.ok = F.phone.before === 0 && F.phone.after >= 5 && F.phone.credit && !F.phone.errors.length && F.pc.before === 0 && !F.pc.errors.length;
+    R.features[3] = F;
+  }
+
   await browser.close(); srv.close();
   fs.writeFileSync(path.join(OUT, 'result.json'), JSON.stringify(R, null, 2));
   const ng = Object.entries(R.features).filter(([, f]) => !f.ok).map(([k]) => k);

@@ -91,6 +91,56 @@ test('2 街明かり: 空の明るさ → 限界等級は Schaefer (1990) の式
   for (const p of ['index.html', 'en/index.html']) assert.ok(read(p).includes('id="lightSlider"') && read(p).includes('id="lightPanel"'), p);
 });
 
+/* ---------- 3 星座絵 ---------- */
+test('3 星座絵: ヘヴェリウスの図の星の印が、網を通すと星表の同じ星に 0.15° 以内で重なる（主要 4 星座）', () => {
+  const { ART, CREDIT } = require('../render/art.js');
+  const { CATALOG } = require('../engine/catalog.js');
+  assert.deepStrictEqual(ART.map((a) => a.con), ['ori', 'gem', 'leo', 'uma']);
+  const S = require('../render/sky.js');
+  for (const a of ART) {
+    const n = a.mesh + 1;
+    assert.strictEqual(a.verts.length, n * n * 3, a.id);
+    assert.ok(a.source.startsWith('https://commons.wikimedia.org/wiki/File:'), a.id);
+    const at = (u, v) => {   // 網の上の位置（画像の 0〜1）→ 空の向き（四隅の頂点の双一次補間）
+      const x = u * a.mesh, y = v * a.mesh, i = Math.min(a.mesh - 1, Math.floor(x)), j = Math.min(a.mesh - 1, Math.floor(y)), fx = x - i, fy = y - j;
+      const V = (ii, jj) => a.verts.slice(((jj * n) + ii) * 3, ((jj * n) + ii) * 3 + 3);
+      const p = [0, 1, 2].map((k) => V(i, j)[k] * (1 - fx) * (1 - fy) + V(i + 1, j)[k] * fx * (1 - fy) + V(i, j + 1)[k] * (1 - fx) * fy + V(i + 1, j + 1)[k] * fx * fy);
+      const m = Math.hypot(...p); return p.map((x2) => x2 / m);
+    };
+    for (const s of a.stars) {
+      // 組にした星は星表（engine/catalog.js）にある
+      let found = false;
+      for (let i = 0; i < CATALOG.length; i += 4) if (Math.abs(CATALOG[i] / 1000 * 15 - s.ra) < 0.001 && Math.abs(CATALOG[i + 1] / 100 - s.dec) < 0.001) found = true;
+      assert.ok(found, `${a.id} ${s.name} が星表に無い`);
+      if (s.px.some((x) => x < 0 || x > 1)) continue;   // 切り出した範囲の外（位置合わせにだけ使った星）
+      const want = S.vec(s.ra * D, s.dec * D), got = at(s.px[0], s.px[1]);
+      const sep = Math.acos(Math.min(1, want[0] * got[0] + want[1] * got[1] + want[2] * got[2])) / D;
+      assert.ok(sep < 0.15, `${a.id} ${s.name} ${sep.toFixed(3)}°`);
+    }
+    assert.ok(a.residualDeg.median < 1, a.id);
+  }
+  assert.ok(CREDIT.ja.includes('ヘヴェリウス') && CREDIT.ja.includes('パブリックドメイン') && CREDIT.en.includes('public domain'));
+});
+
+test('3 星座絵: 画像は 1024 px 以内・合わせて 600 KB 以内で、押したときに初めて読む（入口の HTML は art.js を読まない）', () => {
+  const { ART } = require('../render/art.js');
+  let total = 0;
+  for (const a of ART) {
+    const b = fs.readFileSync(path.join(ROOT, a.file)); total += b.length;
+    assert.ok(b[0] === 0xff && b[1] === 0xd8 && a.size[0] <= 1024, a.id);
+  }
+  assert.ok(total <= 600 * 1024, `${total}`);
+  for (const p of ['index.html', 'en/index.html']) {
+    const html = read(p);
+    assert.ok(!html.includes('src="/hoshizora-night/render/art.js"') && html.includes('id="artBtn"') && html.includes('id="artCredit" hidden'), p);
+  }
+  const app = read('app/night.js');
+  assert.ok(app.includes("sc.src = '/hoshizora-night/render/art.js'") && app.includes('r.loadArt('));
+  // 作り方の道具に出典とライセンス
+  const tool = read('tools/build-art.py');
+  for (const s of ['Firmamentum Sobiescianum', 'Wikimedia Commons', 'Public Domain Mark', '1690']) assert.ok(tool.includes(s), s);
+});
+
 /* ---------- 共通 ---------- */
 test('文字: 日英で項目が揃い、英語はすべて k132-wow2-en-review.md の承認待ちの文（新しく書いた英語はここだけ）', () => {
   assert.deepStrictEqual(Object.keys(W.TEXT.en).sort(), Object.keys(W.TEXT.ja).sort());

@@ -356,7 +356,7 @@
       const A = at(tail), B = at(head);
       if (A && B) met = { a: A.clip, b: B.clip, w: 2.6 * dprCap(), alpha: Math.sin(Math.PI * Math.min(1, k)) * 0.95 * starF * (1 - moonF * 0.5) };
     }
-    r.draw({ starM, H, az: st.az, alt: st.alt, zoom: st.zoom, fovDeg: st.fovDeg, dpr: dprCap(), time: twinkleOn ? now / 1000 : 0, now, cssW: cw, cssH: ch,
+    r.draw({ art: showArt ? { alpha: 0.34 * starF * ease, color: [0.62, 0.72, 1.0] } : null, starM, H, az: st.az, alt: st.alt, zoom: st.zoom, fovDeg: st.fovDeg, dpr: dprCap(), time: twinkleOn ? now / 1000 : 0, now, cssW: cw, cssH: ch,
       twinkle: twinkleOn ? 1 : 0, limit, twilight: L.twilightWeight(sim, place.lat, place.lon) * (1 - dayF), dusk: 1 - ease,
       milky: st.stage === 'full' ? mwF * ease : 0, milkyTex: st.stage === 'full', noise: true, hills: true,
       sky: { sun: sunHz, day: dayF, glow: 1, moon: mH, moonK: moonF, ext: 1, dim: 1 - 0.3 * (1 - starF), city: lp.glow },
@@ -718,6 +718,22 @@
   $('lightBtn').addEventListener('click', () => { const open = $('lightPanel').hidden; closePanels(); if (open) $('lightPanel').hidden = false; lightText(); });
   lightSlider.addEventListener('input', () => { lightU = +lightSlider.value / WOW.LIGHT.steps; lightText(); dirty = true; });
 
+  /* ---------------- 3 星座絵（企画書 75）: ヘヴェリウス『Firmamentum Sobiescianum』（1690）を淡く重ねる ----------------
+     網と画像（render/art.js・render/art/*.jpg）は押したときに初めて読む（初めの読み込みを重くしない） */
+  let showArt = false, artLoaded = false;
+  function loadArtData(done) {
+    if (window.NightArt) { done(); return; }
+    const sc = document.createElement('script'); sc.src = '/hoshizora-night/render/art.js'; sc.onload = done; document.head.appendChild(sc);
+  }
+  $('artBtn').addEventListener('click', () => {
+    showArt = !showArt; setPressed('artBtn', showArt); $('artCredit').hidden = !showArt; dirty = true;
+    if (showArt) {
+      toast(wt('artToast'));
+      if (!artLoaded) { artLoaded = true; loadArtData(() => { r.setArt(window.NightArt.ART); r.loadArt('/hoshizora-night/', () => { dirty = true; texSettle = performance.now() + 900; }); }); }
+    }
+    window.__night.art = showArt;
+  });
+
   // 使い方
   $('helpBtn').addEventListener('click', () => { $('help').hidden = false; });
   $('helpStart').addEventListener('click', () => { $('help').hidden = true; canvas.focus({ preventScroll: true }); });
@@ -765,7 +781,7 @@
 
   window.__night = { stage: 'full', fps: [], playing, picked: null, get place() { return place.id; }, sheet: null, toast: null, get sim() { return sim; }, get limit() { return st.limit; },
     allLines: showLines, intro: () => introStart == null, meteor: () => !!meteor, forceMeteor: (dur) => { nextMeteor = 0; forcedDur = dur || 0; },
-    gyro: null, light: null, setLight: (u) => { lightSlider.value = String(Math.round(u * WOW.LIGHT.steps)); lightSlider.dispatchEvent(new Event('input')); }, reduce: reduce.matches, select: (x, y) => handleTap(x, y), view: st, flying: () => !!fly, textures: () => r.textures(),
+    gyro: null, light: null, art: false, artState: () => r.artState(), setLight: (u) => { lightSlider.value = String(Math.round(u * WOW.LIGHT.steps)); lightSlider.dispatchEvent(new Event('input')); }, reduce: reduce.matches, select: (x, y) => handleTap(x, y), view: st, flying: () => !!fly, textures: () => r.textures(),
     loading: () => { const t = r.textures(); return params.get('tex') !== 'off' && (!t.milky || !t.moon || performance.now() < texSettle); },
     where: (name) => {   // 確かめ用: 名前の付いた星・惑星・月の画面上の位置（CSS px）。見えなければ null
       const bp = lastFrameState && lastFrameState.bodyPos[name]; if (bp) return bp.x == null ? null : { x: bp.x, y: bp.y };

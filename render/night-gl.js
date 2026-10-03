@@ -223,6 +223,22 @@ void main(){
   gl_FragColor = vec4(outC, outA * uAlpha);
 }`;
 
+  // 星座絵（企画書 75 の 3）: ヘヴェリウスの図を網（J2000 の頂点）で空に貼る。白 = 墨の濃淡を淡い色で加算
+  const ART_VS = `attribute vec3 aPos; attribute vec2 aUV; uniform mat3 uHz; uniform mat3 uView; uniform vec2 uScale;
+varying vec2 vUV; varying float vAlt; varying float vBack;
+void main(){ vec3 h = uHz * aPos; vec3 p = uView * h; vUV = aUV; vAlt = h.z; vBack = p.z;
+  gl_Position = vec4(p.xy / max(1.0 + p.z, 0.05) * uScale, 0.0, 1.0); }`;
+  const ART_FS = `precision mediump float; uniform sampler2D uTex; uniform vec3 uColor; uniform float uAlpha; uniform vec4 uMask; uniform float uHills;
+varying vec2 vUV; varying float vAlt; varying float vBack;
+void main(){
+  if (vBack < -0.6) discard;
+  float ink = texture2D(uTex, vUV).r;
+  float m = 1.0 - smoothstep(0.72, 1.0, length((vUV - uMask.xy) / uMask.zw));
+  float a = ink * m * smoothstep(-0.005, 0.04, vAlt) * uAlpha;
+  if (a < 0.003) discard;
+  gl_FragColor = vec4(uColor * a, 1.0);
+}`;
+
   // 流れ星: 画面上の帯（4 頂点）。aT は 0（尾）〜1（頭）
   const MET_VS = `attribute vec2 aXY; attribute float aT; varying float vT; void main(){ vT = aT; gl_Position = vec4(aXY, 0.0, 1.0); }`;
   const MET_FS = `precision mediump float; uniform float uA; varying float vT; void main(){ gl_FragColor = vec4(0.92, 0.95, 1.0, uA * vT * vT); }`;
@@ -288,6 +304,7 @@ void main(){
     const ql = program(gl, QL_VS, QL_FS, ['uColor', 'uCore', 'uDash']);
     const sp = program(gl, SP_VS, SP_FS, ['uClip', 'uHalf', 'uRot', 'uMode', 'uColor', 'uAlpha', 'uR', 'uSunDir', 'uAspect', 'uRing', 'uBands', 'uTex', 'uHasTex', 'uEarth', 'uOcc']);
     const me = program(gl, MET_VS, MET_FS, ['uA']);
+    const ar = program(gl, ART_VS, ART_FS, ['uHz', 'uView', 'uScale', 'uTex', 'uColor', 'uAlpha', 'uMask', 'uHills']);
     const mw = MW ? milkyUniforms(MW) : null;
     const maxPt = (gl.getParameter(gl.ALIASED_POINT_SIZE_RANGE) || [1, 64])[1];
 
@@ -368,6 +385,47 @@ void main(){
       const f = new Float32Array(segs.length * 6); segs.forEach(([a, b], i) => { f.set(a, i * 6); f.set(b, i * 6 + 3); });
       L2.b = buf(f); L2.n = segs.length * 2;
     }
+
+    /** 星座絵（企画書 75 の 3）。list は render/art.js の ART。画像は loadArt を呼んだときに初めて読む（遅延読み込み） */
+    const arts = {};
+    function setArt(list) {
+      for (const a of list) {
+        const n = a.mesh + 1, pos = new Float32Array(a.verts), uv = new Float32Array(n * n * 2), idx = [];
+        for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) { uv[(j * n + i) * 2] = i / a.mesh; uv[(j * n + i) * 2 + 1] = j / a.mesh; }
+        for (let j = 0; j < a.mesh; j++) for (let i = 0; i < a.mesh; i++) { const k = j * n + i; idx.push(k, k + 1, k + n, k + 1, k + n + 1, k + n); }
+        const ib = gl.createBuffer(); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ib); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(idx), gl.STATIC_DRAW);
+        arts[a.id] = { pos: buf(pos), uv: buf(uv), ib, count: idx.length, mask: a.mask, file: a.file, tex: null, at: 0, loading: false };
+      }
+    }
+    function loadArt(base, onload) {
+      for (const a of Object.values(arts)) {
+        if (a.tex || a.loading || typeof Image === 'undefined') continue;
+        a.loading = true;
+        const img = new Image(); img.decoding = 'async';
+        img.onload = () => {
+          const t = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t);
+          gl.texImage2D(gl.TEXTURE_2D, 0, gl.LUMINANCE, gl.LUMINANCE, gl.UNSIGNED_BYTE, img);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+          a.tex = t; a.at = (typeof performance !== 'undefined' ? performance.now() : Date.now()); if (onload) onload();
+        };
+        img.src = base + a.file;
+      }
+    }
+    function drawArt(o, starM, view, scale, hills, now) {
+      for (const a of Object.values(arts)) {
+        if (!a.tex) continue;
+        const k = opts.instantTextures ? 1 : Math.min(1, (now - a.at) / 800);
+        use(ar); bindAttr(ar, 'aPos', a.pos, 3); bindAttr(ar, 'aUV', a.uv, 2);
+        gl.uniformMatrix3fv(ar.U.uHz, false, starM); gl.uniformMatrix3fv(ar.U.uView, false, view); gl.uniform2fv(ar.U.uScale, scale);
+        gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, a.tex); gl.uniform1i(ar.U.uTex, 0);
+        gl.uniform3fv(ar.U.uColor, o.color || [0.62, 0.72, 1.0]); gl.uniform1f(ar.U.uAlpha, (o.alpha == null ? 0.3 : o.alpha) * k);
+        gl.uniform4fv(ar.U.uMask, a.mask); gl.uniform1f(ar.U.uHills, hills);
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, a.ib); gl.blendFunc(gl.ONE, gl.ONE);
+        gl.drawElements(gl.TRIANGLES, a.count, gl.UNSIGNED_SHORT, 0);
+      }
+    }
+    const artState = () => Object.fromEntries(Object.entries(arts).map(([k, a]) => [k, !!a.tex]));
 
     /** 画面の縮尺（立体射影 → クリップ座標） */
     function scaleOf(st) {
@@ -450,6 +508,8 @@ void main(){
       gl.drawArrays(gl.TRIANGLES, 0, 3);
       // 星雲・銀河（星の後ろ）
       gl.enable(gl.BLEND);
+      // 星座絵（星の後ろ。企画書 75 の 3）
+      if (st.art && st.art.alpha > 0) drawArt(st.art, S.toColumnMajor(st.starM), S.toColumnMajor(V), scale, hills, now);
       for (const o of st.glows || []) drawSprite(o, cssW, cssH, now);
       // 星・惑星（加算合成）
       gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
@@ -514,7 +574,7 @@ void main(){
     /** 画面の 1° が何 CSS px か（画面の中心で） */
     function pxPerDeg(st, cssW, cssH) { return st.zoom / Math.tan(st.fovDeg * Math.PI / 720) * Math.min(cssW, cssH) / 2 * (Math.PI / 180) / 2; }
 
-    return { gl, draw, setBodies, setLines, project, pxPerDeg, textures: () => ({ milky: !!tex.milky, moon: !!tex.moon }) };
+    return { gl, draw, setBodies, setLines, project, pxPerDeg, setArt, loadArt, artState, textures: () => ({ milky: !!tex.milky, moon: !!tex.moon }) };
   }
 
   root.NightRender = { create, viewMatrix, starAttribs, milkyUniforms, MWN };

@@ -12,6 +12,7 @@ const require = createRequire(import.meta.url);
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const L = require('../render/look.js');
 const W = require('../render/wow.js');   // 企画書 75（フル版だけの機能）の文字
+const ART_CREDIT = require('../render/art.js').CREDIT;   // 星座絵の出典（企画書 75 の 3。art.js は画面では押したときに初めて読む）
 const OG = JSON.parse(fs.readFileSync(path.join(ROOT, 'og', 'og.json'), 'utf8'));
 
 export const SITE = 'https://yorozu-craft.com';
@@ -108,6 +109,7 @@ export function page(lang, month) {
   <nav id="dock" class="dock" aria-label="${T.menu}">
     <button id="gyro" type="button" class="wow" aria-pressed="false" hidden>${lbl(WT.bGyro)}</button>
     <button id="lightBtn" type="button" class="wow" aria-pressed="false" aria-controls="lightPanel">${lbl(WT.bLight)}</button>
+    <button id="artBtn" type="button" class="wow" aria-pressed="false">${lbl(WT.bArt)}</button>
     <button id="lines" type="button" aria-pressed="true">${lbl(T.bLines)}</button>
     <button id="names" type="button" aria-pressed="true">${lbl(T.bNames)}</button>
     <button id="timeBtn" type="button" aria-pressed="false" aria-controls="timePanel">${lbl(T.bTime)}</button>
@@ -119,7 +121,7 @@ export function page(lang, month) {
     <button id="share" type="button">${lbl(T.bShare)}</button>
     <a id="light" href="${light}">${T.light}</a>
   </nav>
-  <p class="credit"><a href="${L.CREDITS.milky.href}" rel="noopener">${L.CREDITS.milky[lang]}</a> · <a href="${L.CREDITS.moon.href}" rel="noopener">${L.CREDITS.moon[lang]}</a></p>
+  <p class="credit"><a href="${L.CREDITS.milky.href}" rel="noopener">${L.CREDITS.milky[lang]}</a> · <a href="${L.CREDITS.moon.href}" rel="noopener">${L.CREDITS.moon[lang]}</a><span id="artCredit" hidden> · <a href="${ART_CREDIT.href}" rel="noopener">${ART_CREDIT[lang]}</a></span></p>
 </div>
 <div id="timePanel" class="panel" role="group" aria-label="${T.timePanel}" hidden>
   <div class="panel-top"><span id="tpNow" class="tpnow"></span><button type="button" class="icon close" data-close="timePanel" aria-label="${T.close}">×</button></div>

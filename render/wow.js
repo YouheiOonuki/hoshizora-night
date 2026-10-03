@@ -4,7 +4,8 @@
    ブラウザでも Node（テスト）でも読める。
      1 ジャイロ（端末の向き → 見る方位・高度。磁北 → 真北は WMM2025 の偏角）
      2 街明かり（空の明るさ → 見える星の限界・天の川・空の色）
-   （3〜8 は順に足す） */
+     3 星座絵（ヘヴェリウス 1690。位置合わせと網は tools/build-art.py → render/art.js。押したときに初めて読む）
+   （4〜8 は順に足す） */
 (function (root) {
   const W = (typeof module !== 'undefined') ? require('./wmm.js') : root.NightWMM;
   const D = Math.PI / 180;
@@ -150,6 +151,8 @@
       lightLabels: [['田舎', '郊外', '都会'], ['いなか', 'まちの そと', 'まち']],
       lightRead: [(B, m) => `空の明るさ ${B.toFixed(1)} 等/平方秒角 · 見える星 ${m.toFixed(1)} 等まで`, (B, m) => `みえる ほしは ${m.toFixed(1)}とう まで`],
       lightNote: ['限界等級は Schaefer (1990) の式。天の川と空の色は目安です', 'まちが あかるいと くらい ほしは みえないよ'],
+      bArt: ['星座絵', 'せいざの え'],
+      artToast: ['ヘヴェリウスの星座絵（1690 年）を重ねました。オリオン・ふたご・しし・おおぐま', 'むかしの せいざの えを かさねたよ'],
     },
     en: {
       bGyro: 'Gyro',
@@ -162,6 +165,8 @@
       lightLabels: ['Countryside', 'Suburbs', 'City'],
       lightRead: (B, m) => `Sky brightness ${B.toFixed(1)} mag/arcsec² · stars to magnitude ${m.toFixed(1)}`,
       lightNote: 'Limiting magnitude from Schaefer (1990). The Milky Way and sky color are approximate.',
+      bArt: 'Constellation art',
+      artToast: 'Showing Hevelius’s constellation art (1690): Orion, Gemini, Leo and Ursa Major',
     },
   };
 
