@@ -170,14 +170,30 @@
 
   /* ---------------- 空の上の名前（DOM の札を使い回す） ---------------- */
   const labelBox = $('labels'), pool = []; let used = 0;
+  // 左上の文字（日時・場所・向き）・右上の今夜の出来事・下のボタン列には名前を重ねない（L.avoidShift でずらすか隠す）
+  const UI_AVOID = ['.hud .clock', '#place', '#placeSub', '#facing', '#tonight', '.corner', '.bottom'];
+  let avoid = [];
+  function uiRects() {
+    const out = [];
+    for (const sel of UI_AVOID) {
+      const e = document.querySelector(sel); if (!e || e.hidden) continue;
+      const b = e.getBoundingClientRect(); if (b.width > 0 && b.height > 0) out.push({ x: b.left, y: b.top, r: b.right, b: b.bottom });
+    }
+    return out;
+  }
   function label(text, x, y, cls, dx = 0, dy = 0, center = true) {
     let el = pool[used];
     if (!el) { el = document.createElement('span'); labelBox.appendChild(el); pool.push(el); }
     used++;
     if (el.textContent !== text) el.textContent = text;
     if (el.className !== cls) el.className = cls;
-    el.style.transform = `translate(${Math.round(x + dx)}px, ${Math.round(y + dy)}px)${center ? ' translate(-50%, -50%)' : ' translateY(-50%)'}`;
     el.hidden = false;
+    const key = text + '|' + cls + '|' + kids;
+    if (el._key !== key) { el._key = key; el._w = el.offsetWidth; el._h = el.offsetHeight; }   // 大きさは文字が変わったときだけ測る
+    const bx = Math.round(x + dx) - (center ? el._w / 2 : 0), by = Math.round(y + dy) - el._h / 2;
+    const sh = L.avoidShift({ x: bx, y: by, w: el._w, h: el._h }, avoid);
+    if (sh == null) { el.hidden = true; return; }
+    el.style.transform = `translate(${Math.round(x + dx)}px, ${Math.round(y + dy + sh)}px)${center ? ' translate(-50%, -50%)' : ' translateY(-50%)'}`;
   }
   function labelsDone() { for (let i = used; i < pool.length; i++) pool[i].hidden = true; used = 0; }
 
@@ -337,6 +353,7 @@
       glows, quads, sprites, moon: null, lineAlpha: 0, allLines: 0, meteor: met });
 
     /* 名前 */
+    avoid = uiRects();
     if (showNames && !quiz && starF > 0.05) {
       for (const c of CONS) {
         let sx = 0, sy = 0, n = 0;
@@ -684,6 +701,7 @@
       const h = S.apply(S.starMatrix(sim, place.lat, place.lon), s.v);
       return h[2] > 0 ? r.project(h, st, canvas.clientWidth, canvas.clientHeight) : null;
     },
+    labelRects: () => ({ ui: uiRects(), labels: [...labelBox.children].filter((e) => !e.hidden).map((e) => { const b = e.getBoundingClientRect(); return { t: e.textContent, x: b.left, y: b.top, r: b.right, b: b.bottom }; }) }),
     conAt: (id) => { const c = CONS.find((x) => x.id === id); const h = conH(c); return h[2] > 0 ? r.project(h, st, canvas.clientWidth, canvas.clientHeight) : null; } };
 
   /* ---------------- はじまり（軽量版 init と同じ順: 共有の # → カレンダーの ?t= → 図鑑の ?c= → 昼なら今夜 21 時） ---------------- */

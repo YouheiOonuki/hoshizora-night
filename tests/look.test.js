@@ -159,3 +159,18 @@ test('6 場所: 都道府県庁 47 か所（日本の中・名前の重なりな
   for (const p of P.PREFS) assert.ok(p.lat > 24 && p.lat < 46 && p.lon > 122 && p.lon < 146 && p.tz === 'Asia/Tokyo', p.name);
   assert.deepStrictEqual([P.PREFS[0].name, P.PREFS[46].name], ['北海道', '沖縄県']);
 });
+
+test('名前の札と画面の文字の重なり（L.avoidShift）: かからなければ 0、少しかかるならずらして逃がし、深くかかるなら隠す（null）', () => {
+  const hud = { x: 16, y: 12, r: 200, b: 120 }, bar = { x: 0, y: 760, r: 390, b: 844 };
+  const ui = [hud, bar];
+  const over = (b, a) => b.x < a.r && a.x < b.x + b.w && b.y < a.b && a.y < b.y + b.h;
+  assert.strictEqual(L.avoidShift({ x: 220, y: 40, w: 80, h: 16 }, ui), 0);                  // 横に離れている
+  const dy = L.avoidShift({ x: 100, y: 112, w: 80, h: 16 }, ui);                             // 下の縁に少しかかる → 下へ
+  assert.ok(dy > 0 && dy <= L.LABEL_AVOID.shift, String(dy));
+  assert.ok(!ui.some((a) => over({ x: 100, y: 112 + dy, w: 80, h: 16 }, a)));
+  const up = L.avoidShift({ x: 100, y: 750, w: 80, h: 16 }, ui);                              // 下のボタン列にかかる → 上へ
+  assert.ok(up < 0 && !ui.some((a) => over({ x: 100, y: 750 + up, w: 80, h: 16 }, a)));
+  assert.strictEqual(L.avoidShift({ x: 60, y: 50, w: 80, h: 16 }, ui), null);               // 左上の文字の真ん中 → 隠す
+  // 二つの部品の間が狭くて、どちらへずらしても別の部品にかかるなら隠す
+  assert.strictEqual(L.avoidShift({ x: 50, y: 118, w: 60, h: 16 }, [hud, { x: 0, y: 140, r: 390, b: 200 }]), null);
+});
