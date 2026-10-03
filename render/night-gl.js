@@ -450,35 +450,47 @@ void main(){ vec2 e = min(vUV, 1.0 - vUV); float edge = smoothstep(0.0, 0.06, mi
       return true;
     }
 
-    /** 星座絵（企画書 75 の 3）。list は render/art.js の ART。画像は loadArt を呼んだときに初めて読む（遅延読み込み） */
+    /** 星座絵（企画書 75 の 3）。list は render/art.js の ART。画像は、その星座が画面に入って地平線の上に出たときに初めて 1 枚ずつ読む（遅延読み込み） */
     const arts = {};
+    let artBase = null, artOnload = null;
     function setArt(list) {
       for (const a of list) {
         const n = a.mesh + 1, pos = new Float32Array(a.verts), uv = new Float32Array(n * n * 2), idx = [];
         for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) { uv[(j * n + i) * 2] = i / a.mesh; uv[(j * n + i) * 2 + 1] = j / a.mesh; }
         for (let j = 0; j < a.mesh; j++) for (let i = 0; i < a.mesh; i++) { const k = j * n + i; idx.push(k, k + 1, k + n, k + 1, k + n + 1, k + n); }
         const ib = gl.createBuffer(); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ib); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(idx), gl.STATIC_DRAW);
-        arts[a.id] = { pos: buf(pos), uv: buf(uv), ib, count: idx.length, mask: a.mask, file: a.file, tex: null, at: 0, loading: false };
+        arts[a.id] = { pos: buf(pos), uv: buf(uv), ib, count: idx.length, mask: a.mask, file: a.file, center: a.center, radius: (a.radiusDeg || 90) * Math.PI / 180, tex: null, at: 0, loading: false };
       }
     }
-    function loadArt(base, onload) {
-      for (const a of Object.values(arts)) {
-        if (a.tex || a.loading || typeof Image === 'undefined') continue;
-        a.loading = true;
-        const img = new Image(); img.decoding = 'async';
-        img.onload = () => {
-          const t = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t);
-          gl.texImage2D(gl.TEXTURE_2D, 0, gl.LUMINANCE, gl.LUMINANCE, gl.UNSIGNED_BYTE, img);
-          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-          a.tex = t; a.at = (typeof performance !== 'undefined' ? performance.now() : Date.now()); if (onload) onload();
-        };
-        img.src = base + a.file;
-      }
+    /** 読む場所を決めるだけ。実際に読むのは drawArt で見えたとき */
+    function loadArt(base, onload) { artBase = base; artOnload = onload; }
+    function fetchArt(a) {
+      if (a.tex || a.loading || artBase == null || typeof Image === 'undefined') return;
+      a.loading = true;
+      const img = new Image(); img.decoding = 'async';
+      img.onload = () => {
+        const t = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.LUMINANCE, gl.LUMINANCE, gl.UNSIGNED_BYTE, img);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        a.tex = t; a.at = (typeof performance !== 'undefined' ? performance.now() : Date.now()); if (artOnload) artOnload();
+      };
+      img.onerror = () => { a.loading = false; };
+      img.src = artBase + a.file;
+    }
+    /** 網の中心（J2000）が、星と同じ行列で画面の近く（画面の隅の角度＋網の半径）にあり、地平線の上に少しでも出ているか */
+    function artVisible(a, starM, view, scale) {
+      const c = a.center; if (!c) return true;
+      const h = [starM[0] * c[0] + starM[3] * c[1] + starM[6] * c[2], starM[1] * c[0] + starM[4] * c[1] + starM[7] * c[2], starM[2] * c[0] + starM[5] * c[1] + starM[8] * c[2]];
+      if (h[2] < -Math.sin(Math.min(a.radius, Math.PI / 2))) return false;
+      const pz = view[2] * h[0] + view[5] * h[1] + view[8] * h[2];
+      const corner = 2 * Math.atan(Math.hypot(1 / scale[0], 1 / scale[1]));
+      return Math.acos(Math.max(-1, Math.min(1, pz))) < corner + a.radius;
     }
     function drawArt(o, starM, view, scale, hills, now) {
       for (const a of Object.values(arts)) {
-        if (!a.tex) continue;
+        if (!artVisible(a, starM, view, scale)) continue;
+        if (!a.tex) { fetchArt(a); continue; }
         const k = opts.instantTextures ? 1 : Math.min(1, (now - a.at) / 800);
         use(ar); bindAttr(ar, 'aPos', a.pos, 3); bindAttr(ar, 'aUV', a.uv, 2);
         gl.uniformMatrix3fv(ar.U.uHz, false, starM); gl.uniformMatrix3fv(ar.U.uView, false, view); gl.uniform2fv(ar.U.uScale, scale);

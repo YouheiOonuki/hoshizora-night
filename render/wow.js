@@ -4,7 +4,7 @@
    ブラウザでも Node（テスト）でも読める。
      1 ジャイロ（端末の向き → 見る方位・高度。磁北 → 真北は WMM2025 の偏角）
      2 街明かり（空の明るさ → 見える星の限界・天の川・空の色）
-     3 星座絵（ヘヴェリウス 1690。位置合わせと網は tools/build-art.py → render/art.js。押したときに初めて読む）
+     3 星座絵（ヘヴェリウス 1690。位置合わせと網は tools/build-art.py → render/art.js。押したときに網を読み、画像は画面に入った星座の分だけ読む）
      4 星雲・星団へのズーム（ESA/Hubble の実写。tools/build-dso.py → render/dso.js。画像の向きと大きさを空に合わせる）
      5 星の軌跡（時間を早回しし、星を別の絵に描きためて少しずつ暗くする。動きを減らす設定では 2 時間分を 1 枚に）
      6 双眼鏡・望遠鏡（円い視野で拡大し、限界等級を口径の分だけ上げる。暗い星はヒッパルコス星表 render/hip.js を押したときに読む）
@@ -324,7 +324,7 @@
       lightRead: [(B, m) => `空の明るさ ${B.toFixed(1)} 等/平方秒角 · 見える星 ${m.toFixed(1)} 等まで`, (B, m) => `みえる ほしは ${m.toFixed(1)}とう まで`],
       lightNote: ['限界等級は Schaefer (1990) の式。天の川と空の色は目安です', 'まちが あかるいと くらい ほしは みえないよ'],
       bArt: ['星座絵', 'せいざの え'],
-      artToast: ['ヘヴェリウスの星座絵（1690 年）を重ねました。オリオン・ふたご・しし・おおぐま', 'むかしの せいざの えを かさねたよ'],
+      artToast: ['ヘヴェリウスの星座絵（1690 年）を重ねました。主な 26 星座（見えている星座から読みます）', 'むかしの せいざの えを かさねたよ'],
       bDso: ['星雲・星団', 'せいうん'],
       dsoTitle: ['ズームする天体', 'ズームする てんたい'],
       dsoPhoto: ['実写の画像（ESA/Hubble、CC BY 4.0）。星の点は星表の位置で重ねています', 'ほんものの しゃしんだよ'],
@@ -370,7 +370,7 @@
       lightRead: (B, m) => `Sky brightness ${B.toFixed(1)} mag/arcsec² · stars to magnitude ${m.toFixed(1)}`,
       lightNote: 'Limiting magnitude from Schaefer (1990). The Milky Way and sky color are approximate.',
       bArt: 'Constellation art',
-      artToast: 'Showing Hevelius’s constellation art (1690): Orion, Gemini, Leo and Ursa Major',
+      artToast: 'Showing Hevelius’s constellation art (1690) for 26 major constellations, loaded as they come into view',
       bDso: 'Nebulae',
       dsoTitle: 'Zoom to',
       dsoPhoto: 'Real photo (ESA/Hubble, CC BY 4.0). Star dots are drawn at their catalog positions.',
