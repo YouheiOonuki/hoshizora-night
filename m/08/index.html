@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>ほしぞらさんぽ フル版｜8月の星空</title>
+<meta name="description" content="星空さんぽと同じ計算で、今夜の星空を濃紺の空とにじむ星の光で描きます。時間が流れ、星がゆっくり動きます。広告なし・登録なし。">
+<!-- 生成物: tools/build-pages.mjs から作る。手で編集しない -->
+<meta name="robots" content="noindex, follow">
+<link rel="canonical" href="https://yorozu-craft.com/hoshizora-night/">
+<link rel="alternate" hreflang="ja" href="https://yorozu-craft.com/hoshizora-night/">
+<link rel="alternate" hreflang="en" href="https://yorozu-craft.com/hoshizora-night/en/">
+<link rel="alternate" hreflang="x-default" href="https://yorozu-craft.com/hoshizora-night/">
+<meta property="og:title" content="ほしぞらさんぽ フル版｜8月の星空">
+<meta property="og:description" content="星空さんぽと同じ計算で、今夜の星空を濃紺の空とにじむ星の光で描きます。時間が流れ、星がゆっくり動きます。広告なし・登録なし。">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://yorozu-craft.com/hoshizora-night/m/08/">
+<meta property="og:locale" content="ja_JP">
+<meta property="og:image" content="https://yorozu-craft.com/hoshizora-night/og/08.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="8月15日21時、東京の南の空">
+<meta property="og:site_name" content="yorozu-craft">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#050a1e">
+<!-- Google AdSense: フル版は広告なし（ROADMAP 7.15 の要件 2・7.15.1 の 10）。サイト所有確認の meta だけ（D118） -->
+<meta name="google-adsense-account" content="ca-pub-5375267956079717">
+<link rel="icon" href="/hoshizora-night/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/hoshizora-night/apple-touch-icon.png">
+<link rel="stylesheet" href="/hoshizora-night/night.css">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"WebApplication","name":"ほしぞらさんぽ フル版","url":"https://yorozu-craft.com/hoshizora-night/","applicationCategory":"EducationalApplication","operatingSystem":"Any","inLanguage":"ja","offers":{"@type":"Offer","price":"0","priceCurrency":"JPY"},"description":"星空さんぽと同じ計算で、今夜の星空を濃紺の空とにじむ星の光で描きます。時間が流れ、星がゆっくり動きます。広告なし・登録なし。"}</script>
+</head>
+<body class="app">
+<canvas id="sky"></canvas>
+<div id="dirs" class="dirs" aria-hidden="true"><span>北</span><span>東</span><span>南</span><span>西</span></div>
+<p id="pick" class="pick" hidden></p>
+<header class="hud">
+  <p class="clock"><span id="date"></span><span id="time"></span></p>
+  <button id="place" type="button" class="chip" aria-expanded="false" aria-controls="places"></button>
+</header>
+<ul id="tonight" class="tonight"></ul>
+<div class="bar">
+  <input id="slider" type="range" min="0" max="1439" step="1" value="1260" aria-label="時刻">
+  <div class="btns">
+    <button id="play" type="button" class="icon" aria-label="止める"><svg class="i-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg><svg class="i-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg></button>
+    <button id="now" type="button">いま</button>
+    <button id="share" type="button">共有</button>
+    <a id="light" href="/hoshizora-sanpo/">軽い版</a>
+  </div>
+</div>
+<div id="places" class="panel" role="dialog" aria-labelledby="place" hidden>
+  <div class="panel-top"><button id="geo" type="button">現在地</button><button id="closePlaces" type="button" class="icon" aria-label="閉じる">×</button></div>
+  <div id="placeList" class="list"></div>
+  <p class="links"><a href="/about.html">運営者情報</a> · <a href="/privacy-policy.html">プライバシーポリシー</a> · <a href="/hoshizora-sanpo/about.html">使い方</a> · <a href="/hoshizora-night/en/" hreflang="en" lang="en">English</a></p>
+</div>
+<p id="toast" class="toast" role="status" hidden></p>
+<p id="slow" class="slow" hidden><a href="/hoshizora-sanpo/">軽い版</a></p>
+<p id="nogl" class="nogl" hidden><a href="/hoshizora-sanpo/">軽い版</a></p>
+<script src="/hoshizora-night/render/gate.js"></script>
+<script src="/hoshizora-night/engine/astro.js"></script>
+<script src="/hoshizora-night/engine/catalog.js"></script>
+<script src="/hoshizora-night/engine/data.js"></script>
+<script>window.module = { exports: {} };</script>
+<script src="/hoshizora-night/engine/official-events.js"></script>
+<script>window.NightEvents = window.module.exports; delete window.module;</script>
+<script src="/hoshizora-night/render/sky.js"></script>
+<script src="/hoshizora-night/render/look.js"></script>
+<script src="/hoshizora-night/render/prefectures.js"></script>
+<script src="/hoshizora-night/render/night-gl.js"></script>
+<script src="/hoshizora-night/app/night.js"></script>
+<!-- Cloudflare Web Analytics（Cookie を使わないアクセス解析） --><script type='module' src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "b79bf821e1fd4b6683866d493b1de426"}'></script><!-- End Cloudflare Web Analytics -->
+</body>
+</html>

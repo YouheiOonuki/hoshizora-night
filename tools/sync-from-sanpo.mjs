@@ -13,8 +13,11 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
 
-export const FILES = ['astro.js', 'catalog.js', 'data.js'];
+// 写すファイル（写し先の名前 → 通常版のパス）。official-events.js は「今夜の見どころ」用（ROADMAP 7.15.1 の 7）
+export const SOURCES = { 'astro.js': 'astro.js', 'catalog.js': 'catalog.js', 'data.js': 'data.js', 'official-events.js': 'tools/official-events.js' };
+export const FILES = Object.keys(SOURCES);
 export const REPO = 'YouheiOonuki/hoshizora-sanpo';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const ENGINE = path.join(ROOT, 'engine');
@@ -23,7 +26,7 @@ export const sha256 = (buf) => crypto.createHash('sha256').update(buf).digest('h
 
 /** 写しの先頭行。1 行に収める（2 行目以降を元と比べるため） */
 export function headerLine(file, commit, checked, hash) {
-  return `/* 生成物・手で編集しない: ${REPO}@${commit} の ${file} を tools/sync-from-sanpo.mjs で写した（確認日 ${checked}、元の sha256 ${hash}） */\n`;
+  return `/* 生成物・手で編集しない: ${REPO}@${commit} の ${SOURCES[file] || file} を tools/sync-from-sanpo.mjs で写した（確認日 ${checked}、元の sha256 ${hash}） */\n`;
 }
 
 /** 写しから先頭行を外して元の中身に戻す */
@@ -57,6 +60,30 @@ async function readSource(commit, file) {
   return await r.text();
 }
 
+/** calendar-pages.js（日本語）・calendar-pages-en.js（英語）の流星群の表から { id: 名前 } を取り出す（読み込まずに文字列から） */
+export function showerNames(text, table) {
+  const i = text.indexOf(`const ${table} = {`);
+  if (i < 0) throw new Error(`${table} がありません`);
+  const body = text.slice(i, text.indexOf('\n};', i));
+  const out = {};
+  for (const m of body.matchAll(/^\s*'?([a-z-]+)'?: \{ name: '([^']+)'/gm)) out[m[1]] = m[2];
+  return out;
+}
+
+/** フル版の「今夜の見どころ」の流星群の名前（render/look.js）が通常版の表と同じか */
+async function checkNames(commit) {
+  const L = createRequire(import.meta.url)('../render/look.js');
+  const ja = showerNames(await readSource(commit, 'tools/calendar-pages.js'), 'SHOWERS');
+  const en = showerNames(await readSource(commit, 'tools/calendar-pages-en.js'), 'SHOWERS_EN');
+  let ng = 0;
+  for (const id of new Set([...Object.keys(ja), ...Object.keys(L.SHOWERS)])) {
+    const mine = L.SHOWERS[id] || [];
+    if (mine[0] !== ja[id] || mine[1] !== en[id]) { ng++; console.log(`NG  流星群 ${id}: フル版 ${mine.join(' / ')} ／ 通常版 ${ja[id]} / ${en[id]}`); }
+  }
+  console.log(`${ng ? 'NG ' : 'OK '} 流星群の名前 ${Object.keys(ja).length} 件（render/look.js と通常版の calendar-pages*.js）`);
+  return ng;
+}
+
 const todayJst = () => new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
 
 async function sync(ref) {
@@ -65,10 +92,10 @@ async function sync(ref) {
   const files = {};
   fs.mkdirSync(ENGINE, { recursive: true });
   for (const f of FILES) {
-    const src = await readSource(commit, f);
+    const src = await readSource(commit, SOURCES[f]);
     const hash = sha256(src);
     fs.writeFileSync(path.join(ENGINE, f), headerLine(f, commit, checked, hash) + src);
-    files[f] = { sha256: hash, bytes: Buffer.byteLength(src) };
+    files[f] = { from: SOURCES[f], sha256: hash, bytes: Buffer.byteLength(src) };
   }
   const meta = { repo: REPO, commit, checked, files };
   fs.writeFileSync(path.join(ENGINE, 'SOURCE.json'), JSON.stringify(meta, null, 2) + '\n');
@@ -80,11 +107,12 @@ async function check() {
   let ng = 0;
   for (const f of FILES) {
     const body = stripHeader(fs.readFileSync(path.join(ENGINE, f), 'utf8'));
-    const src = await readSource(meta.commit, f);
+    const src = await readSource(meta.commit, SOURCES[f]);
     const ok = body === src && sha256(src) === meta.files[f].sha256;
     if (!ok) ng++;
     console.log(`${ok ? 'OK ' : 'NG '} ${f}  ${REPO}@${meta.commit.slice(0, 7)} と${ok ? '一致' : '不一致'}`);
   }
+  ng += await checkNames(meta.commit);
   try {
     const latest = await resolveRef('main');
     if (latest !== meta.commit) console.log(`お知らせ: 通常版の main は ${latest.slice(0, 7)} に進んでいます。node tools/sync-from-sanpo.mjs で写し直し、tests を通してください`);
