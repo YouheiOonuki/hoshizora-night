@@ -108,7 +108,7 @@ test('初回の読み込み: JS は gzip 後 600 KB 以内、画像は 1 MB 以�
 });
 
 test('外向きの要求を出すコードが無い（fetch・XMLHttpRequest・sendBeacon・WebSocket・EventSource）', () => {
-  for (const f of ['app/night.js', 'app/poster.js', 'render/poster.js', 'render/look.js', 'render/night-gl.js', 'render/sky.js', 'render/gate.js', 'render/prefectures.js', 'render/catalog-extra.js']) {
+  for (const f of ['app/night.js', 'app/poster.js', 'render/poster.js', 'render/look.js', 'render/info.js', 'render/night-gl.js', 'render/sky.js', 'render/gate.js', 'render/prefectures.js', 'render/catalog-extra.js']) {
     const src = read(f).replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
     assert.ok(!/\bfetch\s*\(|XMLHttpRequest|sendBeacon|WebSocket|EventSource|https?:\/\//.test(src), f);
   }
@@ -119,14 +119,41 @@ test('通常版と相互リンク: 「軽い版」は日本語 → /hoshizora-sa
   assert.ok(read('en/index.html').includes('<a id="light" href="/hoshizora-sanpo/en/">Light version</a>'));
 });
 
-test('英語の画面の文字は TEXT.en（20 語以内）のものだけ', () => {
+test('英語の画面の文字は TEXT.en と出典の行のものだけ（企画書 74 で 20 語の上限は外した。文の出どころは tests/look.test.js）', () => {
   const html = read('en/index.html');
   const body = html.slice(html.indexOf('<body')).replace(/<script[\s\S]*?<\/script>/g, '').replace(/<svg[\s\S]*?<\/svg>/g, '');
-  const texts = [...body.matchAll(/>([^<]+)</g)].map((m) => m[1].trim()).filter((s) => s && s !== '·' && s !== '×');
+  const texts = [...body.matchAll(/>([^<]+)</g)].map((m) => m[1].trim()).filter((s) => s && s !== '·' && s !== '×' && s !== '?');
   const attrs = [...body.matchAll(/aria-label="([^"]+)"/g)].map((m) => m[1]);
-  const allowed = new Set([...Object.values(L.TEXT.en).flat(), '日本語']);
+  const flat = (v) => (v && typeof v === 'object') ? Object.values(v).flatMap(flat) : [v];
+  const allowed = new Set([...flat(L.TEXT.en), '日本語', 'Web Planetarium', L.CREDITS.milky.en, L.CREDITS.moon.en]);
   for (const s of [...texts, ...attrs]) assert.ok(allowed.has(s), `TEXT.en に無い文字列: ${s}`);
-  assert.ok(L.wordCount(L.TEXT.en) <= 20);
+});
+
+test('軽量版の画面の機能が全部ある（企画書 74 の棚卸し）: ボタン・パネル・シート・使い方', () => {
+  for (const [p, en] of [['index.html', false], ['en/index.html', true]]) {
+    const html = read(p);
+    const ids = ['sky', 'labels', 'dirs', 'date', 'time', 'place', 'facing', 'tonight', 'helpBtn', 'quizBar', 'qHint', 'play', 'slider', 'now',
+      'lines', 'names', 'timeBtn', 'quiz', 'aster', 'red', 'share', 'light', 'timePanel', 'tpNowBtn', 'tpPlay', 'tpSpeed', 'places', 'geo', 'placeList',
+      'sheet', 'sheetBody', 'help', 'helpStart', 'redFilter', 'toast', ...(en ? ['moonBtn', 'locForm', 'locLat', 'locLon'] : ['kids'])];
+    for (const id of ids) assert.ok(html.includes(`id="${id}"`), `${p} に #${id} が無い`);
+    assert.strictEqual((html.match(/data-d="-?1"/g) || []).length, 2, p);
+    assert.strictEqual((html.match(/data-month="-?1"/g) || []).length, 2, p);
+    // 使い方から軽量版の読みもの（図鑑・カレンダー・月の出・神話・早見盤）へ
+    const links = en ? ['/hoshizora-sanpo/en/calendar/', '/hoshizora-sanpo/en/planisphere/', '/hoshizora-sanpo/en/guide.html']
+      : ['/hoshizora-sanpo/zukan/', '/hoshizora-sanpo/calendar/', '/hoshizora-sanpo/tsuki/', '/hoshizora-sanpo/shinwa/', '/hoshizora-sanpo/hayamiban/'];
+    for (const l of links) assert.ok(html.includes(`href="${l}"`), `${p} ${l}`);
+    assert.ok(html.includes('/hoshizora-night/engine/text.js') && html.includes('/hoshizora-night/render/info.js'), p);
+  }
+  // ひらがなモードは軽量版と同じく .ad・.kd の切りかえ
+  assert.ok(read('index.html').includes('<span class="ad">星座線</span><span class="kd">せいざの せん</span>'));
+  assert.match(read('night.css'), /body:not\(\.kids\) \.kd, body\.kids \.ad \{ display: none !important; \}/);
+});
+
+test('保存しない（7.15.1）・音なし: localStorage・Audio を使うコードが無い', () => {
+  for (const f of ['app/night.js', 'render/info.js', 'render/night-gl.js', 'render/look.js']) {
+    const src = read(f).replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+    assert.ok(!/localStorage|sessionStorage|indexedDB|document\.cookie|new Audio|AudioContext|<audio/.test(src), f);
+  }
 });
 
 test('WebGL を使うページはすべて gate.js で通常版へ送れる', () => {
@@ -141,7 +168,7 @@ test('ページは engine/ の写しを読む（通常版の計算を別に持�
     const html = read(p);
     assert.ok(/engine\/astro\.js/.test(html) && /engine\/catalog\.js/.test(html), p);
   }
-  for (const f of ['render/sky.js', 'render/look.js', 'render/night-gl.js', 'app/night.js', 'render/poster.js', 'app/poster.js']) {
+  for (const f of ['render/sky.js', 'render/look.js', 'render/night-gl.js', 'render/info.js', 'app/night.js', 'render/poster.js', 'app/poster.js']) {
     assert.ok(!/2306\.2181|18\.697374558|24\.0657098|125\.1228|0\.9856474/.test(read(f)), `${f} に天文計算の定数がある`);
   }
 });

@@ -35,8 +35,10 @@ async function shoot(S) {
     const ms = Date.parse(m.at), page = await ctx.newPage();   // # だけ変えても読み直さないので、月ごとに新しいページ
     await page.goto(`${base}?probe=off#${m.lat.toFixed(2)},${m.lon.toFixed(2)},${ms / 1000}`);
     await page.waitForFunction(() => document.documentElement.dataset.ready === '1');
-    await page.addStyleTag({ content: '.hud,.tonight,.bar,.pick,.toast,.dirs{display:none!important} .ogmark{position:fixed;right:28px;bottom:22px;font:500 22px/1 system-ui,sans-serif;color:#9fb2d8;letter-spacing:.02em}' });
-    await page.evaluate(() => { const p = document.createElement('p'); p.className = 'ogmark'; p.textContent = 'yorozu-craft.com/hoshizora-night'; document.body.appendChild(p); });
+    await page.waitForFunction(() => !window.__night.loading(), null, { timeout: 30000 });   // 天の川の画像と月の地図を読み終えるまで
+    // 文字は URL と、天の川の画像の出典（ESO の条件: 見える形でクレジット。企画書 74）だけ
+    await page.addStyleTag({ content: '.hud,.tonight,.bottom,.corner,.labels,.toast,.dirs,.sheet{display:none!important} .ogmark{position:fixed;right:28px;bottom:22px;margin:0;text-align:right;font:500 22px/1.3 system-ui,sans-serif;color:#9fb2d8;letter-spacing:.02em} .ogmark small{display:block;font-size:14px;opacity:.8}' });
+    await page.evaluate(() => { const p = document.createElement('p'); p.className = 'ogmark'; p.innerHTML = 'yorozu-craft.com/hoshizora-night<small>Milky Way: ESO/S. Brunier</small>'; document.body.appendChild(p); });
     await page.waitForTimeout(400);
     await page.screenshot({ path: path.join(ROOT, m.file), type: 'jpeg', quality: 82 });
     console.log('撮りました', m.file);

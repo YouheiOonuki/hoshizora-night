@@ -16,7 +16,8 @@ import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 
 // 写すファイル（写し先の名前 → 通常版のパス）。official-events.js は「今夜の見どころ」用（ROADMAP 7.15.1 の 7）
-export const SOURCES = { 'astro.js': 'astro.js', 'catalog.js': 'catalog.js', 'data.js': 'data.js', 'official-events.js': 'tools/official-events.js' };
+// text.js は星・月・惑星の説明シートの文（日本語・ひらがな・英語。企画書 74: 軽量版の説明文を手で写さない）
+export const SOURCES = { 'astro.js': 'astro.js', 'catalog.js': 'catalog.js', 'data.js': 'data.js', 'official-events.js': 'tools/official-events.js', 'text.js': 'text.js' };
 export const FILES = Object.keys(SOURCES);
 export const REPO = 'YouheiOonuki/hoshizora-sanpo';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -84,6 +85,17 @@ async function checkNames(commit) {
   return ng;
 }
 
+/** 軽量版の英語の画面（en/index.html）の文字（要素の中の文字と aria-label・placeholder・label）を 1 行ずつ。
+    フル版の英語のボタン・パネルの文字が軽量版と同じかを tests/look.test.js が確かめるための写し（tests/fixtures/sanpo-en-strings.txt） */
+export function enStrings(html) {
+  const body = html.slice(html.indexOf('<body')).replace(/<script[\s\S]*?<\/script>/g, '').replace(/<!--[\s\S]*?-->/g, '');
+  const out = new Set();
+  for (const m of body.matchAll(/>([^<]+)</g)) { const t = m[1].replace(/\s+/g, ' ').trim(); if (t) out.add(t); }
+  for (const m of body.matchAll(/aria-label="([^"]+)"/g)) out.add(m[1]);
+  return [...out].join('\n') + '\n';
+}
+const FIXTURE = path.join(ROOT, 'tests', 'fixtures', 'sanpo-en-strings.txt');
+
 const todayJst = () => new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
 
 async function sync(ref) {
@@ -97,6 +109,8 @@ async function sync(ref) {
     fs.writeFileSync(path.join(ENGINE, f), headerLine(f, commit, checked, hash) + src);
     files[f] = { from: SOURCES[f], sha256: hash, bytes: Buffer.byteLength(src) };
   }
+  fs.mkdirSync(path.dirname(FIXTURE), { recursive: true });
+  fs.writeFileSync(FIXTURE, enStrings(await readSource(commit, 'en/index.html')));
   const meta = { repo: REPO, commit, checked, files };
   fs.writeFileSync(path.join(ENGINE, 'SOURCE.json'), JSON.stringify(meta, null, 2) + '\n');
   console.log(`写しました: ${REPO}@${commit.slice(0, 7)}（確認日 ${checked}）`);
@@ -112,6 +126,9 @@ async function check() {
     if (!ok) ng++;
     console.log(`${ok ? 'OK ' : 'NG '} ${f}  ${REPO}@${meta.commit.slice(0, 7)} と${ok ? '一致' : '不一致'}`);
   }
+  const fx = enStrings(await readSource(meta.commit, 'en/index.html')) === fs.readFileSync(FIXTURE, 'utf8');
+  if (!fx) ng++;
+  console.log(`${fx ? 'OK ' : 'NG '} tests/fixtures/sanpo-en-strings.txt（軽量版の en/index.html の文字）`);
   ng += await checkNames(meta.commit);
   try {
     const latest = await resolveRef('main');

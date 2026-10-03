@@ -22,6 +22,11 @@
       "from": "tools/official-events.js",
       "sha256": "98694d04fa0d2ef9137c1933fd99f80c92f6771f428b7284beefbfbc0d5e6c8f",
       "bytes": 16911
+    },
+    "text.js": {
+      "from": "text.js",
+      "sha256": "7ee8f8bef39b3f50a143dd3aa5c827f91193ad641f67eee218a0b79197a60e9e",
+      "bytes": 11695
     }
   }
 }

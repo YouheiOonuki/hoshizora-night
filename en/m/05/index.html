@@ -31,43 +31,78 @@
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebApplication","name":"Night Sky Tonight, Full Version","url":"https://yorozu-craft.com/hoshizora-night/en/","applicationCategory":"EducationalApplication","operatingSystem":"Any","inLanguage":"en","offers":{"@type":"Offer","price":"0","priceCurrency":"JPY"},"description":"Tonight’s sky for your place, drawn large: a deep blue sky, softly glowing stars and the slow turn of the night. Same calculations as the light version. No ads, no sign-up."}</script>
 </head>
 <body class="app">
-<canvas id="sky"></canvas>
-<div id="cons" class="cons" aria-hidden="true"></div>
-<div id="dirs" class="dirs" aria-hidden="true"><span>N</span><span>E</span><span>S</span><span>W</span></div>
-<p id="pick" class="pick" hidden></p>
+<canvas id="sky" tabindex="0" aria-label="Night sky. Drag to look around, pinch to zoom, tap a constellation for notes. Arrow keys also work."></canvas>
+<div id="labels" class="labels" aria-hidden="true"></div>
+<div id="dirs" class="dirs" aria-hidden="true"><span class="main">N</span><span class="sub">NE</span><span class="main">E</span><span class="sub">SE</span><span class="main">S</span><span class="sub">SW</span><span class="main">W</span><span class="sub">NW</span></div>
 <header class="hud">
   <p class="clock"><span id="date"></span><span id="time"></span></p>
   <button id="place" type="button" class="chip" aria-expanded="false" aria-controls="places"></button>
   <span id="placeSub" class="placesub" hidden></span>
+  <span id="facing" class="facing"></span>
 </header>
+<div class="corner"><button id="helpBtn" type="button" class="round" aria-label="How to use">?</button></div>
 <ul id="tonight" class="tonight"></ul>
-<div class="bar">
-  <input id="slider" type="range" min="0" max="1439" step="1" value="1260" aria-label="Time">
-  <div class="btns">
+<div id="quizBar" class="quizbar" role="status" hidden><span class="qt"><span class="qn" id="qNum"></span><span id="qText"></span></span><button id="qHint" type="button">Hint</button></div>
+<div class="bottom">
+  <div class="row">
     <button id="play" type="button" class="icon" aria-label="Pause"><svg class="i-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg><svg class="i-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg></button>
+    <input id="slider" type="range" min="0" max="1439" step="1" value="1260" aria-label="Time">
     <button id="now" type="button">Now</button>
+  </div>
+  <nav id="dock" class="dock" aria-label="Menu">
+    <button id="lines" type="button" aria-pressed="true">Lines</button>
+    <button id="names" type="button" aria-pressed="true">Names</button>
+    <button id="timeBtn" type="button" aria-pressed="false" aria-controls="timePanel">Time</button>
+    <button id="moonBtn" type="button">Moon phase</button>
+    <button id="quiz" type="button" aria-pressed="false">Quiz</button>
+    
+    <button id="aster" type="button" aria-pressed="false">Asterisms</button>
+    <button id="red" type="button" aria-pressed="false">Red light</button>
     <button id="share" type="button">Share</button>
-    <button id="lines" type="button" class="icon" aria-pressed="false" aria-label="Constellations"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 18l5-8 6 3 5-9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><circle cx="4" cy="18" r="1.8"/><circle cx="9" cy="10" r="1.8"/><circle cx="15" cy="13" r="1.8"/><circle cx="20" cy="4" r="1.8"/></svg></button>
     <a id="light" href="/hoshizora-sanpo/en/">Light version</a>
+  </nav>
+  <p class="credit"><a href="https://www.eso.org/public/images/eso0932a/" rel="noopener">Milky Way: ESO/S. Brunier</a> · <a href="https://svs.gsfc.nasa.gov/4720/" rel="noopener">Moon: NASA SVS</a></p>
+</div>
+<div id="timePanel" class="panel" role="group" aria-label="Time travel" hidden>
+  <div class="panel-top"><span id="tpNow" class="tpnow"></span><button type="button" class="icon close" data-close="timePanel" aria-label="Close">×</button></div>
+  <div class="tprow"><button type="button" data-month="-1">−1 month</button><button type="button" data-d="-1">−1 day</button><button type="button" data-d="1">+1 day</button><button type="button" data-month="1">+1 month</button></div>
+  <div class="tprow"><button type="button" id="tpNowBtn" class="gold">Back to now</button><button type="button" id="tpPlay" aria-pressed="false"></button><button type="button" id="tpSpeed"></button></div>
+</div>
+<div id="places" class="panel" role="dialog" aria-label="Place" hidden>
+  <div class="panel-top"><h2>Whose sky?</h2><button id="closePlaces" type="button" class="icon close" aria-label="Close">×</button></div>
+  <button id="geo" type="button" class="wide">📍 Use my location</button>
+  <div id="placeList" class="list"></div>
+  <form id="locForm" class="locform"><label>Latitude (south is −)<input id="locLat" type="number" inputmode="decimal" step="any" min="-90" max="90" placeholder="51.5"></label><label>Longitude (west is −)<input id="locLon" type="number" inputmode="decimal" step="any" min="-180" max="180" placeholder="-0.1"></label><button type="submit" class="gold">Go</button></form>
+  <p class="note">Your location is used only to calculate the sky and is never sent anywhere. For your location or typed coordinates, times use your device’s time zone.</p>
+</div>
+<section id="sheet" class="sheet" role="dialog" aria-label="Details" hidden>
+  <button id="sheetClose" type="button" class="icon close" aria-label="Close">×</button>
+  <div id="sheetBody"></div>
+</section>
+<div id="help" class="help" hidden>
+  <div class="helpcard" role="dialog" aria-labelledby="helpTitle">
+    <h2 id="helpTitle">Web Planetarium</h2>
+    <ul><li><span class="k">Drag</span><span>Look around (swipe on a phone)</span></li><li><span class="k">Pinch / wheel</span><span>Zoom in and out</span></li><li><span class="k">Tap</span><span>Open notes on a constellation, star, the Moon or a planet</span></li><li><span class="k">Time</span><span>Move time and watch the stars, Sun and Moon move</span></li><li><span class="k">Place</span><span>Pick a city or type a latitude and longitude</span></li><li><span class="k">Red light</span><span>Keeps your eyes used to the dark outdoors</span></li></ul>
+    
+    <button id="helpStart" type="button" class="gold">Start</button>
+    <p class="links"><a href="/hoshizora-sanpo/en/calendar/">Sky calendar</a> · <a href="/hoshizora-sanpo/en/planisphere/">Printable planisphere</a> · <a href="/hoshizora-sanpo/en/guide.html">How it works</a> · <a href="/en/about.html">About</a> · <a href="/en/privacy-policy.html">Privacy policy</a> · <a href="/hoshizora-night/" hreflang="ja" lang="ja">日本語</a></p>
   </div>
 </div>
-<div id="places" class="panel" role="dialog" aria-labelledby="place" hidden>
-  <div class="panel-top"><button id="geo" type="button">Here</button><button id="closePlaces" type="button" class="icon" aria-label="Close">×</button></div>
-  <div id="placeList" class="list"></div>
-  <p class="links"><a href="/en/about.html">About</a> · <a href="/en/privacy-policy.html">Privacy</a> · <a href="/hoshizora-sanpo/en/guide.html">Guide</a> · <a href="/hoshizora-night/" hreflang="ja" lang="ja">日本語</a></p>
-</div>
-<p id="toast" class="toast" role="status" hidden></p>
+<p id="toast" class="toast" role="status" aria-live="polite" hidden></p>
+<div id="redFilter" class="redfilter"></div>
 <p id="slow" class="slow" hidden><a href="/hoshizora-sanpo/en/">Light version</a></p>
 <p id="nogl" class="nogl" hidden><a href="/hoshizora-sanpo/en/">Light version</a></p>
 <script src="/hoshizora-night/render/gate.js"></script>
 <script src="/hoshizora-night/engine/astro.js"></script>
 <script src="/hoshizora-night/engine/catalog.js"></script>
 <script src="/hoshizora-night/engine/data.js"></script>
+<script src="/hoshizora-night/engine/text.js"></script>
 <script>window.module = { exports: {} };</script>
 <script src="/hoshizora-night/engine/official-events.js"></script>
 <script>window.NightEvents = window.module.exports; delete window.module;</script>
 <script src="/hoshizora-night/render/sky.js"></script>
 <script src="/hoshizora-night/render/look.js"></script>
+<script src="/hoshizora-night/render/info.js"></script>
 <script src="/hoshizora-night/render/catalog-extra.js"></script>
 <script src="/hoshizora-night/render/prefectures.js"></script>
 <script src="/hoshizora-night/render/night-gl.js"></script>

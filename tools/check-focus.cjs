@@ -35,7 +35,7 @@ const BLOCK = /cloudflareinsights|googlesyndication|doubleclick/;
     // マウスのクリックでは輪が出ない
     await p.goto(base + url);
     await p.waitForFunction(() => document.documentElement.dataset.ready === '1');
-    const chip = p.locator('.chip, .btns button').first();
+    const chip = p.locator('.chip, .dock button').first();
     await chip.click();
     const style = await p.evaluate(() => getComputedStyle(document.activeElement).outlineStyle);
     const ok = style === 'none';
