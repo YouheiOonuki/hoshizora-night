@@ -152,6 +152,37 @@ const WINTER = '#35.69,139.69,1800021600';  // 2027-01-15 23:00 JST 東京（冬
     R.features[4] = F;
   }
 
+  /* 5 星の軌跡: 早回し（600 倍）で光の筋が残る（北の空で北極星のまわり）。動きを減らす設定では止まった 1 枚 */
+  if (want(5)) {
+    const F = { shots: [] };
+    for (const [dev, tag] of [[PHONE, 'phone'], [PC, 'pc']]) {
+      const { ctx, p, errors } = await open(dev, `?probe=off&view=0,36${WINTER}`, { reducedMotion: 'no-preference' });
+      await p.waitForTimeout(3800);   // 開いたときの演出の後
+      const t0 = await p.evaluate(() => [window.__night.sim, performance.now()]);
+      await p.click('#trailBtn');
+      await p.waitForTimeout(tag === 'phone' ? 9000 : 7000);
+      const t1 = await p.evaluate(() => [window.__night.sim, performance.now(), window.__night.trail, window.__night.trailFrames]);
+      F[tag] = { speed: Math.round((t1[0] - t0[0]) / (t1[1] - t0[1])), trail: t1[2], frames: t1[3], errors };
+      F.shots.push(await shot(p, `5-trail-${tag}-north.png`));
+      await p.click('#trailBtn'); await p.waitForTimeout(300);
+      F[tag].off = await p.evaluate(() => window.__night.trail);
+      await ctx.close();
+    }
+    {
+      const { ctx, p, errors } = await open(PHONE, `?probe=off&view=0,36${WINTER}`, { reducedMotion: 'reduce' });
+      await p.click('#trailBtn'); await p.waitForTimeout(800);
+      const a = await p.evaluate(() => window.__night.sim);
+      const s1 = await p.screenshot(); await p.waitForTimeout(1200); const s2 = await p.screenshot();
+      F.reduce = { still: Buffer.compare(s1, s2) === 0, simSame: a === await p.evaluate(() => window.__night.sim), toast: await p.evaluate(() => window.__night.toast), errors };
+      F.shots.push(await shot(p, '5-trail-phone-reduced.png'));
+      await ctx.close();
+    }
+    // 600 倍のうち、ボタンを押すまでは止まっている（共有の # で開くと止まった状態）ので、平均の倍率は 600 よりやや小さい
+    F.ok = ['phone', 'pc'].every((t) => F[t].trail === true && F[t].frames > 20 && F[t].speed > 300 && F[t].off === false && !F[t].errors.length)
+      && F.reduce.still && F.reduce.simSame && !F.reduce.errors.length;
+    R.features[5] = F;
+  }
+
   await browser.close(); srv.close();
   fs.writeFileSync(path.join(OUT, 'result.json'), JSON.stringify(R, null, 2));
   const ng = Object.entries(R.features).filter(([, f]) => !f.ok).map(([k]) => k);

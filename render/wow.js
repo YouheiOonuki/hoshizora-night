@@ -6,7 +6,8 @@
      2 街明かり（空の明るさ → 見える星の限界・天の川・空の色）
      3 星座絵（ヘヴェリウス 1690。位置合わせと網は tools/build-art.py → render/art.js。押したときに初めて読む）
      4 星雲・星団へのズーム（ESA/Hubble の実写。tools/build-dso.py → render/dso.js。画像の向きと大きさを空に合わせる）
-   （5〜8 は順に足す） */
+     5 星の軌跡（時間を早回しし、星を別の絵に描きためて少しずつ暗くする。動きを減らす設定では 2 時間分を 1 枚に）
+   （6〜8 は順に足す） */
 (function (root) {
   const W = (typeof module !== 'undefined') ? require('./wmm.js') : root.NightWMM;
   // eslint-disable-next-line no-undef
@@ -173,6 +174,17 @@
     return null;
   }
 
+  /* ---------- 5 星の軌跡 ---------- */
+  // speed: 時間の進み（倍）、fadePerSec: 1 秒に暗くする量（0〜1。8 ビットの絵なので 1/255 ずつ）、static: 動きを減らす設定のとき 1 枚に描く時間（時間）と回数
+  const TRAIL = { speed: 600, fadePerSec: 0.08, staticHours: 2, staticSteps: 120 };
+  /** 暗くする量を 1/255 単位にためて返す（acc は持ち越し）。dt は秒 */
+  function trailFade(acc, dt) {
+    const a = acc + TRAIL.fadePerSec * Math.max(0, Math.min(0.25, dt)), n = Math.floor(a * 255);
+    return { fade: n / 255, acc: a - n / 255 };
+  }
+  /** 動きを減らす設定のときの、1 枚に描く時刻（ms の配列。いまから過去へ） */
+  const trailTimes = (ms) => Array.from({ length: TRAIL.staticSteps + 1 }, (_, k) => ms - k * TRAIL.staticHours * 3600e3 / TRAIL.staticSteps);
+
   /* ---------- 文字（新しい UI の文字列。英語は k132-wow2-en-review.md でオーナーの承認待ち） ---------- */
   const TEXT = {
     ja: {
@@ -196,6 +208,10 @@
       dsoMoved: ['いまは見にくいので、見やすい時刻へ移りました', 'みやすい じかんに うごいたよ'],
       dsoNone: ['この 36 時間は見やすい時刻がありません', 'しばらく みえないよ'],
       dsoBack: ['もとの広さに戻る', 'もとに もどる'],
+      bTrail: ['星の軌跡', 'ほしの きせき'],
+      trailOn: ['時間を 600 倍で進めて、星の動いたあとを光の筋で残します', 'ほしの うごいた あとが ひかりの すじに なるよ'],
+      trailStatic: ['動きを減らす設定なので、2 時間分の軌跡を 1 枚で出します', '2じかんぶんの ほしの あとだよ'],
+      trailSlow: ['この端末では使えません（描くのが追いつかないため）', 'この たんまつでは つかえないよ'],
     },
     en: {
       bGyro: 'Gyro',
@@ -218,9 +234,13 @@
       dsoMoved: 'It is hard to see now, so the time moved to when it is easier to see',
       dsoNone: 'No good time to see it in the next 36 hours',
       dsoBack: 'Zoom back out',
+      bTrail: 'Star trails',
+      trailOn: 'Time runs 600× faster and the stars leave streaks of light',
+      trailStatic: 'Reduced motion is on, so two hours of trails are shown as one still picture',
+      trailSlow: 'Not available on this device (it cannot draw fast enough)',
     },
   };
 
-  const api = { magnetic, decimalYear, declination, deviceView, compassOffset, GYRO, needCalibration, follow, LIGHT, skyMag, nelm, lightPollution, photoCorners, ZOOM_DEEP, zoomFor, altOf, sunAlt, viewTime, TEXT };
+  const api = { magnetic, decimalYear, declination, deviceView, compassOffset, GYRO, needCalibration, follow, LIGHT, skyMag, nelm, lightPollution, photoCorners, ZOOM_DEEP, zoomFor, altOf, sunAlt, viewTime, TRAIL, trailFade, trailTimes, TEXT };
   if (typeof module !== 'undefined') module.exports = api; else root.NightWow = api;
 })(typeof window !== 'undefined' ? window : globalThis);

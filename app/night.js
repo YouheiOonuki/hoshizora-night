@@ -236,7 +236,8 @@
         window.__night.stage = st.stage;
       }
     }
-    if (playing) { sim += (now - lastReal) * L.SPEEDS[speedIdx]; dirty = true; }
+    if (playing) { sim += (now - lastReal) * (trail ? WOW.TRAIL.speed : L.SPEEDS[speedIdx]); dirty = true; }
+    const frameDt = (now - lastReal) / 1000;
     lastReal = now;
     // ジャイロ（企画書 75 の 1）: 端末の向きへなめらかに追う（reduced motion ではそのまま向く）
     if (gyro.on && gyro.want) {
@@ -251,12 +252,12 @@
       if (u >= 1) fly = null;
       dirty = true;
     }
-    const twinkleOn = !reduce.matches;
+    const twinkleOn = !reduce.matches && !trail;
     let intro = 1;
     if (introStart != null) { intro = Math.min(1, (now - introStart) / L.INTRO.ms); if (intro >= 1) introStart = null; dirty = true; }
     const ease = intro * intro * (3 - 2 * intro);
     let meteorDraw = null;
-    if (!reduce.matches && intro >= 1) {
+    if (!reduce.matches && intro >= 1 && !trail) {
       if (!meteor && now >= nextMeteor) meteor = spawnMeteor(now);
       if (meteor) {
         const k = (now - meteor.t0) / meteor.dur;
@@ -294,11 +295,11 @@
       return out;
     };
     const hotCon = (quiz && quiz.reveal) || selected;
-    if (starF > 0.05 || (quiz && quiz.reveal)) {
+    if (!trail && (starF > 0.05 || (quiz && quiz.reveal))) {
       if (showLines) quads.push({ segs: CONS.filter((c) => c !== hotCon).flatMap(segOf), width: 1.1, color: [0.6, 0.74, 1.0], alpha: 0.42 * starF * ease });
       if (hotCon) quads.push({ segs: segOf(hotCon), width: 1.8, color: [1.0, 0.82, 0.48], alpha: 0.95 * Math.max(starF, quiz ? 0.4 : 0) * Math.min(1, (now - pickedAt) / (reduce.matches ? 1 : 500)) });
     }
-    if (showAster && starF > 0.05) {
+    if (showAster && starF > 0.05 && !trail) {
       for (const a of ASTERS) {
         const ps = a.vs.map((v) => { const h = S.apply(starM, v); return h[2] > -0.05 ? proj(h) : null; });
         if (ps.some((p) => !p)) { a.c = null; continue; }
@@ -366,7 +367,21 @@
       const c = WOW.photoCorners(deep), pc = proj(S.apply(starM, c.c), 0.05), pr = proj(S.apply(starM, c.right), 0.05), pt = proj(S.apply(starM, c.top), 0.05);
       if (pc && pr && pt) photos.push({ id: deep.id, clip: pc.clip, bx: [pr.clip[0] - pc.clip[0], pr.clip[1] - pc.clip[1]], by: [pt.clip[0] - pc.clip[0], pt.clip[1] - pc.clip[1]], alpha: 0.95 * Math.max(0.15, starF) });
     }
-    r.draw({ photos, pointZoom: 3, art: showArt ? { alpha: 0.34 * starF * ease, color: [0.62, 0.72, 1.0] } : null, starM, H, az: st.az, alt: st.alt, zoom: st.zoom, fovDeg: st.fovDeg, dpr: dprCap(), time: twinkleOn ? now / 1000 : 0, now, cssW: cw, cssH: ch,
+    /* 星の軌跡（企画書 75 の 5）: 向き・拡大・場所・画面の大きさが変わったら描きためた絵を消す */
+    let trailSt = null;
+    if (trail) {
+      const vk = `${st.az.toFixed(5)}|${st.alt.toFixed(5)}|${st.zoom.toFixed(4)}|${place.id}|${canvas.width}x${canvas.height}`;
+      const reset = vk !== trail.key; trail.key = vk;
+      if (reduce.matches) {   // 動きを減らす設定: 2 時間分を 1 枚に（時間は進めない）
+        const ts = WOW.trailTimes(sim);
+        trailSt = { reset: true, fade: 0, steps: ts.map((t) => S.starMatrix(t, place.lat, place.lon)), bodySteps: [H] };
+      } else {
+        const f = WOW.trailFade(trail.acc, frameDt); trail.acc = f.acc;
+        trailSt = { reset, fade: reset ? 0 : f.fade };
+      }
+      window.__night.trailFrames = (window.__night.trailFrames || 0) + 1;
+    }
+    r.draw({ trail: trailSt, photos, pointZoom: 3, art: showArt ? { alpha: 0.34 * starF * ease, color: [0.62, 0.72, 1.0] } : null, starM, H, az: st.az, alt: st.alt, zoom: st.zoom, fovDeg: st.fovDeg, dpr: dprCap(), time: twinkleOn ? now / 1000 : 0, now, cssW: cw, cssH: ch,
       twinkle: twinkleOn ? 1 : 0, limit, twilight: L.twilightWeight(sim, place.lat, place.lon) * (1 - dayF), dusk: 1 - ease,
       milky: st.stage === 'full' ? mwF * ease : 0, milkyTex: st.stage === 'full', noise: true, hills: true,
       sky: { sun: sunHz, day: dayF, glow: 1, moon: mH, moonK: moonF, ext: 1, dim: 1 - 0.3 * (1 - starF), city: lp.glow },
@@ -374,7 +389,7 @@
 
     /* 名前 */
     avoid = uiRects();
-    if (showNames && !quiz && starF > 0.05) {
+    if (showNames && !quiz && starF > 0.05 && !trail) {
       for (const c of CONS) {
         let sx = 0, sy = 0, n = 0;
         for (const i of c.pi) { const s = picks[i]; if (s.vis) { sx += s.x; sy += s.y; n++; } }
@@ -386,7 +401,7 @@
     } else if (showNames && !quiz && selected) {
       // 昼でも選んだ星座の名前は出す
     }
-    if (showNames && !quiz) {
+    if (showNames && !quiz && !trail) {
       for (const [id, bp] of Object.entries(bodyPos)) {
         if (bp.x == null || bp.alt < 0) continue;
         const lit = id === 'sun' || id === 'moon' || (id === 'venus');
@@ -791,6 +806,18 @@
   buildDso();
   $('dsoBtn').addEventListener('click', () => { const open = $('dsoPanel').hidden; closePanels(); if (open) { $('dsoPanel').hidden = false; setPressed('dsoBtn', true); } });
 
+  /* ---------------- 5 星の軌跡（企画書 75）: 早回しで、星の動いたあとが光の筋で残る ---------------- */
+  let trail = null, trailWasPlaying = false;
+  function setTrail(on) {
+    if (on && st.stage !== 'full') { toast(wt('trailSlow')); return; }
+    if (on) {
+      trail = { acc: 0, key: '' }; trailWasPlaying = playing; closeSheet();
+      if (reduce.matches) { setPlaying(false); toast(wt('trailStatic')); } else { setPlaying(true); toast(wt('trailOn')); }
+    } else if (trail) { trail = null; setPlaying(trailWasPlaying && !reduce.matches); }
+    setPressed('trailBtn', !!trail); dirty = true; window.__night.trail = !!trail;
+  }
+  $('trailBtn').addEventListener('click', () => setTrail(!trail));
+
   // 使い方
   $('helpBtn').addEventListener('click', () => { $('help').hidden = false; });
   $('helpStart').addEventListener('click', () => { $('help').hidden = true; canvas.focus({ preventScroll: true }); });
@@ -838,7 +865,7 @@
 
   window.__night = { stage: 'full', fps: [], playing, picked: null, get place() { return place.id; }, sheet: null, toast: null, get sim() { return sim; }, get limit() { return st.limit; },
     allLines: showLines, intro: () => introStart == null, meteor: () => !!meteor, forceMeteor: (dur) => { nextMeteor = 0; forcedDur = dur || 0; },
-    gyro: null, light: null, art: false, artState: () => r.artState(), deep: null, photoState: () => r.photoState(), openDso: (id) => openDso(DSOI.find((d) => d.id === id), true), setLight: (u) => { lightSlider.value = String(Math.round(u * WOW.LIGHT.steps)); lightSlider.dispatchEvent(new Event('input')); }, reduce: reduce.matches, select: (x, y) => handleTap(x, y), view: st, flying: () => !!fly, textures: () => r.textures(),
+    gyro: null, light: null, art: false, trail: false, trailFrames: 0, artState: () => r.artState(), deep: null, photoState: () => r.photoState(), openDso: (id) => openDso(DSOI.find((d) => d.id === id), true), setLight: (u) => { lightSlider.value = String(Math.round(u * WOW.LIGHT.steps)); lightSlider.dispatchEvent(new Event('input')); }, reduce: reduce.matches, select: (x, y) => handleTap(x, y), view: st, flying: () => !!fly, textures: () => r.textures(),
     loading: () => { const t = r.textures(); return params.get('tex') !== 'off' && (!t.milky || !t.moon || performance.now() < texSettle); },
     where: (name) => {   // 確かめ用: 名前の付いた星・惑星・月の画面上の位置（CSS px）。見えなければ null
       const bp = lastFrameState && lastFrameState.bodyPos[name]; if (bp) return bp.x == null ? null : { x: bp.x, y: bp.y };

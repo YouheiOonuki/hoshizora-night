@@ -194,6 +194,28 @@ test('4 拡大と時刻: 天体が画面に収まる拡大（上限 160 倍）�
   assert.ok(gl.includes('Math.min(st.zoom, st.pointZoom || 3)'));
 });
 
+/* ---------- 5 星の軌跡 ---------- */
+test('5 星の軌跡: 600 倍の早回し、暗くする量は 1/255 単位でためて持ち越す（8 ビットの絵でも消え残らない）。動きを減らす設定は 2 時間分を 1 枚に', () => {
+  assert.strictEqual(W.TRAIL.speed, 600);
+  // 60 fps で 1 秒ためると fadePerSec（0.08）にほぼ等しく、端数は持ち越す
+  let acc = 0, total = 0;
+  for (let i = 0; i < 60; i++) { const f = W.trailFade(acc, 1 / 60); acc = f.acc; total += f.fade; assert.ok(Math.abs(f.fade * 255 - Math.round(f.fade * 255)) < 1e-9); }
+  assert.ok(Math.abs(total + acc - W.TRAIL.fadePerSec) < 1e-9 && acc < 1 / 255);
+  // 一番明るい点が消えるまで 1 / 0.08 ≒ 12.5 秒 → 600 倍で 約 2 時間ぶん（30° ほど）の筋
+  assert.ok(1 / W.TRAIL.fadePerSec * W.TRAIL.speed / 3600 > 1.5);
+  // 長く止まっていた後の 1 フレーム（タブを戻したとき）でも一度に消さない
+  assert.ok(W.trailFade(0, 30).fade <= 0.25 * W.TRAIL.fadePerSec + 1 / 255);
+  const ts = W.trailTimes(1e12);
+  assert.strictEqual(ts.length, W.TRAIL.staticSteps + 1);
+  assert.strictEqual(ts[0], 1e12); assert.strictEqual(1e12 - ts[ts.length - 1], W.TRAIL.staticHours * 3600e3);
+  // 描画: 明るい方を残す合成（EXT_blend_minmax）・暗くする四角は引き算・前もって掛けた色。画面: 低い端末では使わない、動きを減らす設定では時間を止める
+  const gl = read('render/night-gl.js'), app = read('app/night.js');
+  assert.ok(gl.includes("gl.getExtension('EXT_blend_minmax')") && gl.includes('gl.FUNC_REVERSE_SUBTRACT') && gl.includes('uPremul > 0.5'));
+  assert.ok(app.includes("if (on && st.stage !== 'full') { toast(wt('trailSlow')); return; }"));
+  assert.ok(app.includes("if (reduce.matches) { setPlaying(false); toast(wt('trailStatic')); }"));
+  assert.ok(app.includes('const twinkleOn = !reduce.matches && !trail;'));
+});
+
 /* ---------- 共通 ---------- */
 test('文字: 日英で項目が揃い、英語はすべて k132-wow2-en-review.md の承認待ちの文（新しく書いた英語はここだけ）', () => {
   assert.deepStrictEqual(Object.keys(W.TEXT.en).sort(), Object.keys(W.TEXT.ja).sort());

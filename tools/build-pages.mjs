@@ -111,6 +111,7 @@ export function page(lang, month) {
     <button id="lightBtn" type="button" class="wow" aria-pressed="false" aria-controls="lightPanel">${lbl(WT.bLight)}</button>
     <button id="artBtn" type="button" class="wow" aria-pressed="false">${lbl(WT.bArt)}</button>
     <button id="dsoBtn" type="button" class="wow" aria-pressed="false" aria-controls="dsoPanel">${lbl(WT.bDso)}</button>
+    <button id="trailBtn" type="button" class="wow" aria-pressed="false">${lbl(WT.bTrail)}</button>
     <button id="lines" type="button" aria-pressed="true">${lbl(T.bLines)}</button>
     <button id="names" type="button" aria-pressed="true">${lbl(T.bNames)}</button>
     <button id="timeBtn" type="button" aria-pressed="false" aria-controls="timePanel">${lbl(T.bTime)}</button>
