@@ -12,12 +12,13 @@ const ROOT = path.join(__dirname, '..');
 const read = (p) => fs.readFileSync(path.join(ROOT, p), 'utf8');
 const MONTHS = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0'));
 const APP = ['index.html', 'en/index.html', ...MONTHS.map((m) => `m/${m}/index.html`), ...MONTHS.map((m) => `en/m/${m}/index.html`)];
+const POSTER = ['poster/index.html'];   // K43（企画書 72）
 const LAB = ['tech/index.html', 'sketches/a.html', 'sketches/b.html', 'sketches/c.html'];
 const BEACON = `data-cf-beacon='{"token": "b79bf821e1fd4b6683866d493b1de426"}'`;
 const BASE = 'https://yorozu-craft.com/hoshizora-night/';
 const meta = (html, prop) => { const m = html.match(new RegExp(`<meta (?:property|name)="${prop}" content="([^"]*)"`)); return m && m[1]; };
 
-for (const p of [...APP, ...LAB]) {
+for (const p of [...APP, ...POSTER, ...LAB]) {
   test(`${p}: 広告の script なし・所有確認の meta・計測のビーコン`, () => {
     const html = read(p);
     assert.ok(!/adsbygoogle|pagead2\.googlesyndication|doubleclick/.test(html), '広告の script がある');
@@ -62,9 +63,9 @@ test('ページはひな形（tools/build-pages.mjs）から作ったものと�
   for (const [rel, body] of outputs()) assert.strictEqual(read(rel), body, `${rel} が古い（node tools/build-pages.mjs）`);
 });
 
-test('sitemap: 入口の日英だけ（月ごとのページは載せない）・hreflang つき', () => {
+test('sitemap: 入口の日英とポスター（月ごとのページは載せない）・hreflang つき', () => {
   const xml = read('sitemap.xml');
-  assert.deepStrictEqual([...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]), [BASE, `${BASE}en/`]);
+  assert.deepStrictEqual([...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]), [BASE, `${BASE}en/`, `${BASE}poster/`]);
   assert.ok(!xml.includes('/m/'));
   assert.ok(xml.includes('hreflang="en"'));
 });
@@ -107,7 +108,7 @@ test('初回の読み込み: JS は gzip 後 600 KB 以内、画像は 1 MB 以�
 });
 
 test('外向きの要求を出すコードが無い（fetch・XMLHttpRequest・sendBeacon・WebSocket・EventSource）', () => {
-  for (const f of ['app/night.js', 'render/look.js', 'render/night-gl.js', 'render/sky.js', 'render/gate.js', 'render/prefectures.js', 'render/catalog-extra.js']) {
+  for (const f of ['app/night.js', 'app/poster.js', 'render/poster.js', 'render/look.js', 'render/night-gl.js', 'render/sky.js', 'render/gate.js', 'render/prefectures.js', 'render/catalog-extra.js']) {
     const src = read(f).replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
     assert.ok(!/\bfetch\s*\(|XMLHttpRequest|sendBeacon|WebSocket|EventSource|https?:\/\//.test(src), f);
   }
@@ -136,11 +137,23 @@ test('WebGL を使うページはすべて gate.js で通常版へ送れる', ()
 });
 
 test('ページは engine/ の写しを読む（通常版の計算を別に持たない）', () => {
-  for (const p of [...APP, ...LAB]) {
+  for (const p of [...APP, ...POSTER, ...LAB]) {
     const html = read(p);
     assert.ok(/engine\/astro\.js/.test(html) && /engine\/catalog\.js/.test(html), p);
   }
-  for (const f of ['render/sky.js', 'render/look.js', 'render/night-gl.js', 'app/night.js']) {
+  for (const f of ['render/sky.js', 'render/look.js', 'render/night-gl.js', 'app/night.js', 'render/poster.js', 'app/poster.js']) {
     assert.ok(!/2306\.2181|18\.697374558|24\.0657098|125\.1228|0\.9856474/.test(read(f)), `${f} に天文計算の定数がある`);
   }
+});
+
+test('ポスター（K43）: 検索に出す・canonical・名前などの文字を URL に書くコードが無い・フル版の描画器と星表を読む', () => {
+  const html = read('poster/index.html');
+  assert.strictEqual(meta(html, 'robots'), 'index, follow');
+  assert.ok(html.includes(`<link rel="canonical" href="${BASE}poster/">`));
+  for (const f of ['render/night-gl.js', 'render/sky.js', 'engine/catalog.js', 'render/catalog-extra.js', 'render/poster.js', 'app/poster.js']) assert.ok(html.includes(`/hoshizora-night/${f}"`), f);
+  const src = read('app/poster.js').replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+  assert.ok(!/history\.(push|replace)State|location\.hash\s*=|location\.(href|search)\s*=|localStorage|sessionStorage|indexedDB|document\.cookie/.test(src), 'URL・保存に書くコードがある');
+  // 日本語の入口から 1 行でつなぐ
+  assert.ok(read('index.html').includes('<a href="/hoshizora-night/poster/">星空ポスター</a>'));
+  assert.ok(!read('en/index.html').includes('/poster/'));
 });

@@ -23,6 +23,23 @@ yorozu-craft のツールの1つです（共通ルールは [youheioonuki.github
 - WebGL が使えない端末では通常版（`/hoshizora-sanpo/`、英語の画面なら `/hoshizora-sanpo/en/`）へ送る
 - 入力（場所・時刻）は端末の外に出さない。保存（localStorage）は使わない（場所と時刻は URL の `#` だけ）。広告なし（AdSense は所有確認の meta だけ）・音なし
 
+## 生まれた日の星空ポスター（K43、`/hoshizora-night/poster/`）
+
+企画書は yorozu-plans の `docs/72_生まれた日の星空ポスター.md`（枝 `claude/plan-72`）。日本語だけ。広告なし。
+
+- 日付・時刻・場所（都道府県庁 47 か所、または緯度・経度と UTC との差）の空を、真上を中心に地平線を円の縁にして描く（見上げた空: 北が上・東が左）
+- 空はフル版の描画器（`render/night-gl.js`）を大きな canvas に向けて描く。星の位置は `render/sky.js` の行列（engine/ の写し）。**計算と星表を別に持たない**。またたき・流れ星・山並み・演出は描かず、昼の時刻でも星は夜と同じに描く
+- 紙は A4・A3・B5（JIS P 0138、縦）、余白 10〜25 mm、300・350 dpi、塗り足し 3 mm（PDF に TrimBox・BleedBox）、濃紺と白、明朝とゴシック
+- 書き出しは PDF（JPEG の帯を並べた 1 ページ。文字も画像の中）と PNG（pHYs に dpi）。1 枚の canvas が 1,600 万画素を超える紙（A3 など）は帯に分ける（iPhone の上限）
+- 題名・日付の行・場所の行は利用者が入れる（日付と場所の行は既定の文が入る）。**URL にも保存にも書かない**。`#lat,lon,unixtime`（フル版の共有と同じ形）は読むだけ
+- 割り付け・PDF・PNG の決まりは `render/poster.js`、画面は `app/poster.js`、ページは `tools/build-pages.mjs` の `posterPage()` の生成物、見た目は `poster/poster.css`
+
+| 確かめること | どこで |
+|---|---|
+| 紙の寸法・画素数・塗り足し・割り付けが余白の内側・同じ星が同じ位置（1 px 以内）・PDF の箱と xref・PNG の pHYs | `tests/poster.test.js` |
+| PDF を実際にダウンロードして寸法と dpi・PNG の星が予測した画素に光るか・空の色・外向きの要求・スクショ | `NODE_PATH=$(npm root -g) PLAYWRIGHT_BROWSERS_PATH=<ブラウザの置き場> node tools/check-k43.cjs [出力先]` |
+| 印刷所に 1 枚出して色と細い線を見る | オーナー（A8） |
+
 ## 計算と星表は通常版から写す（手で分岐させない）
 
 `engine/astro.js`・`engine/catalog.js`・`engine/data.js` は通常版の同名のファイル、`engine/official-events.js` は通常版の `tools/official-events.js` の**生成物**。手で編集しない。
@@ -97,7 +114,11 @@ yorozu-craft のツールの1つです（共通ルールは [youheioonuki.github
 | `sitemap.xml` | 入口の日英（hreflang つき。生成物） |
 | `app/night.js` | 画面（操作・時刻・場所・共有・fps の段階） |
 | `render/look.js` | 見せ方の決まり（7.15.1 の数値）・今夜の見どころ・#・UI の文字列（日英） |
-| `render/night-gl.js` | フル版の描画器（空・星・惑星・月・星座線）。K43 のポスターもこれを大きな canvas に向けて出す設計 |
+| `render/night-gl.js` | フル版の描画器（空・星・惑星・月・星座線）。K43 のポスターもこれを大きな canvas に向けて出す（`create(…, { preserve: true })`） |
+| `poster/index.html`・`poster/poster.css` | K43 生まれた日の星空ポスター（ページは生成物） |
+| `app/poster.js` | ポスターの画面（入力・見本・PDF と PNG の書き出し） |
+| `render/poster.js` | ポスターの決まり（紙・解像度・割り付け・空の円への投影・PDF と PNG） |
+| `tools/check-k43.cjs` | ポスターの受け入れの確かめ（Playwright） |
 | `render/prefectures.js` | 都道府県庁 47 か所（出典と確認日はファイルの冒頭） |
 | `render/catalog-extra.js` | 追加の星表（5.6〜6.5 等、5,155 個。生成物。出典はファイルの冒頭） |
 | `og/01.jpg`〜`12.jpg`・`og/og.json` | 共有用の画像（1200×630。東京・各月 15 日 21 時の南の空。文字は URL だけなので K124 の結果カードと共用できる） |
@@ -110,7 +131,7 @@ yorozu-craft のツールの1つです（共通ルールは [youheioonuki.github
 | `night.css` | 見た目（フル版の画面・試し描き・技術確認） |
 | `tools/sync-from-sanpo.mjs` | 通常版から engine/ に写す・写しを確かめる |
 | `tools/measure-webgl.cjs` | 土台のときの fps・通常版への送り・試し描きのスクショ（Playwright） |
-| `tools/build-pages.mjs` | ページ 26 枚と sitemap をひな形から作る（`--check` で古いものを知らせる） |
+| `tools/build-pages.mjs` | ページ 27 枚（入口・月ごと 24・ポスター）と sitemap をひな形から作る（`--check` で古いものを知らせる） |
 | `tools/build-og.cjs` | OG 画像 12 枚を描画器で撮る（`--json` で og.json だけ） |
 | `tools/build-catalog-extra.cjs` | 追加の星表を作る（同じ元データから 5.6 等までを取ると `engine/catalog.js` と一致することを確かめてから書く） |
 | `tools/check-k132.cjs` | 受け入れの確かめ（iPhone の表示・reduced motion・外向きの要求・fps の段階・WebGL 無し・共有・位置情報の拒否） |

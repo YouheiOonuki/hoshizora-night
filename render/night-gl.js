@@ -4,7 +4,7 @@
      天の川は通常版の data.js の中心線（MW: 赤経・赤緯・幅・濃さ）からの距離で濃さを決め、3 次元のノイズでむらを付ける（新しいデータは持たない）
    ・星は加算合成の点。位置は render/sky.js の行列 1 つ（星ごとの計算は GPU）。半径・色・またたきは render/look.js の決まり
    ・惑星は同じ点の描き方、月は満ち欠けつきの円、星座線は「全部」と「選んだ星座」、流れ星は画面の上の細い帯
-   ・K43 のポスター（印刷用の高解像度）は、同じ draw を大きな canvas（preserveDrawingBuffer）に向ければ出せる（初版では出さない）
+   ・K43 のポスター（印刷用の高解像度。app/poster.js）は、同じ draw を大きな canvas（opts.preserve = preserveDrawingBuffer）に向けて出す
    ブラウザ専用（window.NightSky・window.NightLook を使う） */
 (function (root) {
   const L = root.NightLook, S = root.NightSky;
@@ -177,8 +177,9 @@ void main(){
     return { v, d, n: pts.length };
   }
 
-  function create(canvas, stars, MW) {
-    const gl = canvas.getContext('webgl', { antialias: true, alpha: false, preserveDrawingBuffer: false });
+  /** opts.preserve: 描いた後に 2D の canvas へ写す（ポスター）ときは true */
+  function create(canvas, stars, MW, opts = {}) {
+    const gl = canvas.getContext('webgl', { antialias: true, alpha: false, preserveDrawingBuffer: !!opts.preserve });
     if (!gl) throw new Error('webgl');
     const bg = program(gl, BG_VS, BG_FS, ['uViewT', 'uStarT', 'uScale', 'uZen', 'uHor', 'uGround', 'uMW', 'uMWd', 'uMWn', 'uMWk', 'uNoise', 'uHills']);
     const pt = program(gl, PT_VS, PT_FS, ['uHz', 'uView', 'uScale', 'uHills', 'uDpr', 'uTime', 'uTwinkle', 'uLimit', 'uDim', 'uZoom']);
@@ -196,12 +197,16 @@ void main(){
     let bodyBufs = null;
     const lines = { all: { b: null, n: 0 }, pick: { b: null, n: 0 } };
 
+    // 前の program が有効にした属性を切る。setBodies・setLines が消した buffer を指したままの属性が残ると、
+    // その次の描画（空の三角形など）が INVALID_OPERATION で描かれない（K43 で見つけた: ポスターを 2 回目に描くと空が黒くなった）
+    const MAXA = gl.getParameter(gl.MAX_VERTEX_ATTRIBS);
+    function use(prog) { for (let i = 0; i < MAXA; i++) gl.disableVertexAttribArray(i); gl.useProgram(prog.p); }
     function bindAttr(prog, name, b, size) {
       const loc = gl.getAttribLocation(prog.p, name); if (loc < 0) return;
       gl.bindBuffer(gl.ARRAY_BUFFER, b); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, size, gl.FLOAT, false, 0, 0);
     }
     function drawPoints(B, hzCol, c) {
-      gl.useProgram(pt.p);
+      use(pt);
       bindAttr(pt, 'aPos', B.pos, 3); bindAttr(pt, 'aMag', B.mag, 1); bindAttr(pt, 'aRad', B.rad, 1); bindAttr(pt, 'aColor', B.col, 3);
       bindAttr(pt, 'aTw', B.tw, 1); bindAttr(pt, 'aHz', B.hz, 1); bindAttr(pt, 'aPh', B.ph, 1);
       gl.uniformMatrix3fv(pt.U.uHz, false, hzCol); gl.uniformMatrix3fv(pt.U.uView, false, c.view);
@@ -243,7 +248,7 @@ void main(){
       const V = viewMatrix(st.az, st.alt), scale = scaleOf(st), hills = st.hills ? 1 : 0;
       // 空・山並み・天の川
       gl.disable(gl.BLEND);
-      gl.useProgram(bg.p); bindAttr(bg, 'aXY', tri, 2);
+      use(bg); bindAttr(bg, 'aXY', tri, 2);
       gl.uniformMatrix3fv(bg.U.uViewT, false, S.toColumnMajor(transpose(V)));
       gl.uniformMatrix3fv(bg.U.uStarT, false, S.toColumnMajor(transpose(st.starM)));
       gl.uniform2fv(bg.U.uScale, scale);
@@ -265,7 +270,7 @@ void main(){
       const c = L.hex(L.LINE.color);
       const drawLines = (L2, alpha) => {
         if (!L2.b || alpha <= 0) return;
-        gl.useProgram(ln.p); bindAttr(ln, 'aPos', L2.b, 3);
+        use(ln); bindAttr(ln, 'aPos', L2.b, 3);
         gl.uniformMatrix3fv(ln.U.uHz, false, S.toColumnMajor(st.starM)); gl.uniformMatrix3fv(ln.U.uView, false, common.view);
         gl.uniform2fv(ln.U.uScale, scale); gl.uniform1f(ln.U.uHills, hills);
         gl.uniform4f(ln.U.uColor, c[0], c[1], c[2], alpha);
@@ -289,13 +294,13 @@ void main(){
         const nx = -dy * h / len * m.w / w, ny = dx * w / len * m.w / h;   // 幅の向き（クリップ座標）
         gl.bindBuffer(gl.ARRAY_BUFFER, metXY);
         gl.bufferSubData(gl.ARRAY_BUFFER, 0, new Float32Array([m.a[0] - nx * 0.2, m.a[1] - ny * 0.2, m.a[0] + nx * 0.2, m.a[1] + ny * 0.2, m.b[0] - nx, m.b[1] - ny, m.b[0] + nx, m.b[1] + ny]));
-        gl.useProgram(me.p); bindAttr(me, 'aXY', metXY, 2); bindAttr(me, 'aT', metT, 1);
+        use(me); bindAttr(me, 'aXY', metXY, 2); bindAttr(me, 'aT', metT, 1);
         gl.uniform1f(me.U.uA, m.alpha);
         gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
       }
       // 月
       if (st.moon) {
-        gl.useProgram(mo.p); bindAttr(mo, 'aXY', one, 2);
+        use(mo); bindAttr(mo, 'aXY', one, 2);
         gl.uniform2fv(mo.U.uClip, st.moon.clip); gl.uniform1f(mo.U.uSize, st.moon.size); gl.uniform1f(mo.U.uK, st.moon.k);
         gl.uniform1f(mo.U.uAngle, st.moon.angle); gl.uniform1f(mo.U.uDim, 1);
         gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);

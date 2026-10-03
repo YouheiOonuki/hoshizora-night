@@ -1,0 +1,42 @@
+/* K43 生まれた日の星空ポスター（企画書 72）。設定 → 出力の 1 カラム（SCREEN 1.2）。フル版の night.css（全画面の canvas 用）は読まない */
+:root { color-scheme: dark; --bg: #04060d; --panel: #0b1229; --ink: #dfe6f5; --dim: #9aa8c7; --line: rgba(160, 185, 235, .28); --accent: #8fb0ff; }
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--ink);
+  font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", Meiryo, system-ui, sans-serif; line-height: 1.6; }
+main { max-width: 680px; margin: 0 auto; padding: 16px 16px 48px; }
+h1 { font-size: 1.45rem; font-weight: 600; margin: 8px 0 4px; letter-spacing: .02em; }
+.lead { margin: 0 0 14px; color: var(--dim); font-size: .95rem; }
+a { color: #9fc3ff; }
+.box { border: 1px solid var(--line); border-radius: 12px; background: var(--panel); padding: 12px 14px; margin: 0 0 12px; }
+legend { padding: 0 6px; color: var(--dim); font-size: .9rem; }
+label { display: flex; flex-direction: column; gap: 4px; font-size: .9rem; color: var(--dim); margin: 6px 0; flex: 1; min-width: 0; }
+input[type=date], input[type=time], input[type=text], input[type=number], select {
+  font: inherit; font-size: 16px; color: var(--ink); background: #060a1a; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; min-height: 44px; width: 100%; }
+.row { display: flex; gap: 10px; flex-wrap: wrap; }
+.row > label { min-width: 130px; }
+.check { flex-direction: row; align-items: center; gap: 8px; color: var(--ink); }
+.check input { width: 20px; height: 20px; accent-color: var(--accent); }
+.paper { display: flex; gap: 8px; margin-top: 10px; }
+.paper label { flex: 0 0 auto; margin: 0; }
+.paper input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.paper span { display: inline-flex; align-items: center; justify-content: center; min-width: 64px; min-height: 44px; border: 1px solid var(--line); border-radius: 999px; color: var(--ink); cursor: pointer; }
+.paper input:checked + span { border-color: var(--accent); background: rgba(60, 90, 170, .4); }
+.paper input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+.actions { display: flex; gap: 10px; margin: 4px 0 6px; }
+.actions button, .topbar button { font: inherit; font-size: 1rem; min-height: 48px; padding: 0 22px; border-radius: 999px; border: 1px solid var(--accent); background: #2a4691; color: #fff; cursor: pointer; }
+.actions button.sub { background: transparent; color: var(--ink); border-color: var(--line); }
+.actions button:disabled { opacity: .6; cursor: progress; }
+.status { margin: 4px 0; font-size: .85rem; color: var(--dim); font-variant-numeric: tabular-nums; }
+.warn { margin: 4px 0; font-size: .85rem; color: #ffd27a; }
+.note { margin: 4px 0; font-size: .85rem; color: var(--dim); }
+.frame { display: flex; justify-content: center; margin: 10px 0 16px; }
+#preview { display: block; max-width: 100%; height: auto; box-shadow: 0 6px 30px rgba(0, 0, 0, .6), 0 0 0 1px rgba(160, 185, 235, .18); }
+summary { cursor: pointer; color: var(--ink); min-height: 32px; }
+.links { margin-top: 18px; font-size: .85rem; color: var(--dim); }
+.nogl { padding: 12px; border: 1px solid var(--line); border-radius: 12px; }
+.topbar { position: fixed; left: 0; right: 0; top: 0; z-index: 10; display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 6px 16px; background: rgba(6, 10, 26, .94); border-bottom: 1px solid var(--line); }
+.topbar span { font-size: .9rem; color: var(--dim); }
+.topbar button { min-height: 40px; padding: 0 16px; font-size: .9rem; }
+[hidden] { display: none !important; }
+@media print { .topbar { display: none !important; } }

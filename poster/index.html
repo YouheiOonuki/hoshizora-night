@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>生まれた日の星空ポスター｜日付と場所の星空を印刷用 PDF に｜yorozu-craft</title>
+<meta name="description" content="生まれた日や記念日の日付・時刻・場所の星空を、A4・A3・B5 の印刷用 PDF と PNG（300・350 dpi）にします。星の位置は星空さんぽと同じ計算。無料・広告なし・登録なし、入力は端末の外に出ません。">
+<!-- 生成物: tools/build-pages.mjs から作る。手で編集しない -->
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://yorozu-craft.com/hoshizora-night/poster/">
+<meta property="og:title" content="生まれた日の星空ポスター｜日付と場所の星空を印刷用 PDF に｜yorozu-craft">
+<meta property="og:description" content="生まれた日や記念日の日付・時刻・場所の星空を、A4・A3・B5 の印刷用 PDF と PNG（300・350 dpi）にします。星の位置は星空さんぽと同じ計算。無料・広告なし・登録なし、入力は端末の外に出ません。">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://yorozu-craft.com/hoshizora-night/poster/">
+<meta property="og:locale" content="ja_JP">
+<meta property="og:image" content="https://yorozu-craft.com/hoshizora-night/og/01.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="1月15日21時、東京の南の空">
+<meta property="og:site_name" content="yorozu-craft">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#050a1e">
+<!-- Google AdSense: ポスターも広告なし（K132 と同じ。企画書 72）。サイト所有確認の meta だけ（D118） -->
+<meta name="google-adsense-account" content="ca-pub-5375267956079717">
+<link rel="icon" href="/hoshizora-night/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/hoshizora-night/apple-touch-icon.png">
+<link rel="stylesheet" href="/hoshizora-night/poster/poster.css">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"WebApplication","name":"生まれた日の星空ポスター","url":"https://yorozu-craft.com/hoshizora-night/poster/","applicationCategory":"DesignApplication","operatingSystem":"Any","inLanguage":"ja","offers":{"@type":"Offer","price":"0","priceCurrency":"JPY"},"description":"生まれた日や記念日の日付・時刻・場所の星空を、A4・A3・B5 の印刷用 PDF と PNG（300・350 dpi）にします。星の位置は星空さんぽと同じ計算。無料・広告なし・登録なし、入力は端末の外に出ません。"}</script>
+</head>
+<body class="poster">
+<div id="bar" class="topbar" hidden><span>星空ポスター</span><button id="barPdf" type="button">PDF をダウンロード</button></div>
+<main>
+<h1>生まれた日の星空ポスター</h1>
+<p class="lead">日付・時刻・場所の星空を、印刷用の PDF と PNG にします。入力した文字は端末の外に出ません。</p>
+<p id="nogl" class="nogl" hidden>この端末では作れません（WebGL が使えません）。<a href="/hoshizora-sanpo/">星空さんぽ</a>で星空を見られます。</p>
+<form id="form" onsubmit="return false">
+<fieldset class="box">
+<legend>いつ・どこの空</legend>
+<div class="row">
+<label>日付<input id="date" type="date" min="1900-01-01" max="2100-12-31" required></label>
+<label>時刻<input id="time" type="time" step="60" required></label>
+</div>
+<label>場所（都道府県庁）<select id="place"></select></label>
+<div id="customBox" class="row" hidden>
+<label>緯度<input id="lat" type="number" step="0.01" min="-90" max="90" inputmode="decimal" placeholder="35.69"></label>
+<label>経度<input id="lon" type="number" step="0.01" min="-180" max="180" inputmode="decimal" placeholder="139.69"></label>
+<label>UTC との差（時間）<input id="tz" type="number" step="0.5" min="-12" max="14" value="9"></label>
+</div>
+<div class="paper" role="radiogroup" aria-label="紙">
+<label><input type="radio" name="paper" value="A4" checked><span>A4</span></label><label><input type="radio" name="paper" value="A3"><span>A3</span></label><label><input type="radio" name="paper" value="B5"><span>B5</span></label>
+</div>
+</fieldset>
+<div class="actions">
+<button id="pdf" type="button">PDF をダウンロード</button>
+<button id="png" type="button" class="sub">PNG</button>
+</div>
+<p id="status" class="status" aria-live="polite"></p>
+<p id="dpiWarn" class="warn" hidden>この端末では、選んだ解像度より低くなります。</p>
+<p id="dayNote" class="note" hidden>この時刻は昼か薄明です。ポスターには星を夜と同じように描きます。</p>
+<div class="frame"><canvas id="preview" aria-label="ポスターの見本"></canvas></div>
+<details class="box">
+<summary>文字（題名・日付・場所の行）</summary>
+<label>題名<input id="title" type="text" maxlength="40" placeholder="例: 生まれた日の空"></label>
+<label>日付の行<input id="dateLine" type="text" maxlength="60"></label>
+<label>場所の行<input id="placeLine" type="text" maxlength="60"></label>
+<label class="check"><input id="credit" type="checkbox" checked>下に小さく出典の行</label>
+</details>
+<details class="box">
+<summary>紙・余白・解像度・色</summary>
+<div class="row">
+<label>余白<select id="margin"><option value="10">10 mm</option><option value="15" selected>15 mm</option><option value="20">20 mm</option><option value="25">25 mm</option></select></label>
+<label>解像度<select id="dpi"><option value="350" selected>350 dpi</option><option value="300">300 dpi</option></select></label>
+</div>
+<div class="row">
+<label>紙の色<select id="theme"><option value="navy" selected>濃紺</option><option value="white">白（空だけ濃紺）</option></select></label>
+<label>書体<select id="font"><option value="mincho" selected>明朝</option><option value="gothic">ゴシック</option></select></label>
+</div>
+<label class="check"><input id="bleed" type="checkbox">塗り足し 3 mm（印刷所に出すとき）</label>
+<label class="check"><input id="lines" type="checkbox" checked>星座線</label>
+<label class="check"><input id="names" type="checkbox" checked>星座と惑星の名前</label>
+<label class="check"><input id="dirs" type="checkbox" checked>方位</label>
+</details>
+</form>
+<p class="links"><a href="/hoshizora-night/">フル版で今夜の空を見る</a> · <a href="/hoshizora-sanpo/about.html">使い方</a> · <a href="/about.html">運営者情報</a> · <a href="/privacy-policy.html">プライバシーポリシー</a></p>
+</main>
+<script src="/hoshizora-night/render/gate.js"></script>
+<script src="/hoshizora-night/engine/astro.js"></script>
+<script src="/hoshizora-night/engine/catalog.js"></script>
+<script src="/hoshizora-night/engine/data.js"></script>
+<script src="/hoshizora-night/render/sky.js"></script>
+<script src="/hoshizora-night/render/look.js"></script>
+<script src="/hoshizora-night/render/catalog-extra.js"></script>
+<script src="/hoshizora-night/render/prefectures.js"></script>
+<script src="/hoshizora-night/render/night-gl.js"></script>
+<script src="/hoshizora-night/render/poster.js"></script>
+<script src="/hoshizora-night/app/poster.js"></script>
+<!-- Cloudflare Web Analytics（Cookie を使わないアクセス解析） --><script type='module' src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "b79bf821e1fd4b6683866d493b1de426"}'></script><!-- End Cloudflare Web Analytics -->
+</body>
+</html>
