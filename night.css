@@ -61,6 +61,7 @@ body.kids .labels .con { font-size: 15px; }
   mask-image: linear-gradient(90deg, #000 90%, transparent); -webkit-mask-image: linear-gradient(90deg, #000 90%, transparent); }
 .dock::-webkit-scrollbar { display: none; }
 .dock [aria-pressed="true"] { border-color: rgba(240, 200, 110, .75); color: #ffe2a6; background: rgba(120, 90, 30, .28); }
+.dock .wow::before { content: "✦"; margin-right: 6px; color: var(--gold); opacity: .8; }   /* フル版だけの機能（企画書 75） */
 .dock #light { color: var(--dim); border-color: transparent; background: transparent; padding: 0 8px; font-size: 13px; }
 .credit { margin: 0; font-size: 12px; color: var(--dim); text-align: right; }
 .credit a { color: var(--dim); }

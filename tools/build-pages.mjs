@@ -11,6 +11,7 @@ import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const L = require('../render/look.js');
+const W = require('../render/wow.js');   // 企画書 75（フル版だけの機能）の文字
 const OG = JSON.parse(fs.readFileSync(path.join(ROOT, 'og', 'og.json'), 'utf8'));
 
 export const SITE = 'https://yorozu-craft.com';
@@ -42,7 +43,7 @@ const PLAY_SVG = '<svg class="i-play" viewBox="0 0 24 24" aria-hidden="true"><pa
 
 /** 1 ページ。lang: ja/en、month: null（入口）か 1〜12 */
 export function page(lang, month) {
-  const en = lang === 'en', T = L.TEXT[lang], M = META[lang];
+  const en = lang === 'en', T = L.TEXT[lang], M = META[lang], WT = W.TEXT[lang];
   const self = `${BASE}${en ? 'en/' : ''}${month ? `m/${String(month).padStart(2, '0')}/` : ''}`;
   const canonical = `${BASE}${en ? 'en/' : ''}`;
   const og = month ? OG.months[month - 1] : OG.months[OG.entryMonth - 1];
@@ -105,6 +106,7 @@ export function page(lang, month) {
     <button id="now" type="button">${T.now}</button>
   </div>
   <nav id="dock" class="dock" aria-label="${T.menu}">
+    <button id="gyro" type="button" class="wow" aria-pressed="false" hidden>${lbl(WT.bGyro)}</button>
     <button id="lines" type="button" aria-pressed="true">${lbl(T.bLines)}</button>
     <button id="names" type="button" aria-pressed="true">${lbl(T.bNames)}</button>
     <button id="timeBtn" type="button" aria-pressed="false" aria-controls="timePanel">${lbl(T.bTime)}</button>
@@ -159,6 +161,8 @@ export function page(lang, month) {
 <script>window.NightEvents = window.module.exports; delete window.module;</script>
 <script src="/hoshizora-night/render/sky.js"></script>
 <script src="/hoshizora-night/render/look.js"></script>
+<script src="/hoshizora-night/render/wmm.js"></script>
+<script src="/hoshizora-night/render/wow.js"></script>
 <script src="/hoshizora-night/render/info.js"></script>
 <script src="/hoshizora-night/render/catalog-extra.js"></script>
 <script src="/hoshizora-night/render/prefectures.js"></script>

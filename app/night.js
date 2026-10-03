@@ -4,7 +4,7 @@
    ・入力（場所・時刻）は端末の外に出さない。保存（localStorage）はしない。場所と時刻は URL の # だけ（#lat,lon,unixtime）
    ・?probe=off で最初の fps の測定を止める（スクショ・計測用）。?view=<方位°>,<高度°> で向きを決めて開く（確かめ用） */
 (function () {
-  const L = window.NightLook, S = window.NightSky, R = window.NightRender, O = window.NightEvents, P = window.NightPrefs.PREFS, I = window.NightInfo;
+  const L = window.NightLook, S = window.NightSky, R = window.NightRender, O = window.NightEvents, P = window.NightPrefs.PREFS, I = window.NightInfo, WOW = window.NightWow;
   const $ = (id) => document.getElementById(id);
   const EN = document.documentElement.lang === 'en';
   const T = L.TEXT[EN ? 'en' : 'ja'];
@@ -16,6 +16,9 @@
   let kids = false;
   let X = I.ctx(EN ? 'en' : 'ja', false);          // 文（軽量版の text.js の T と同じ。ひらがなモードで作り直す）
   const TT = (k, ...a) => X.T(k, ...a);
+  const WT = WOW.TEXT[EN ? 'en' : 'ja'];
+  /** 企画書 75 の文字（日本語は [おとな, ひらがな]） */
+  const wt = (k) => { const v = WT[k]; return Array.isArray(v) ? v[kids ? 1 : 0] : v; };
 
   /* ---------------- 星と名前 ---------------- */
   const stars = [];
@@ -231,6 +234,12 @@
     }
     if (playing) { sim += (now - lastReal) * L.SPEEDS[speedIdx]; dirty = true; }
     lastReal = now;
+    // ジャイロ（企画書 75 の 1）: 端末の向きへなめらかに追う（reduced motion ではそのまま向く）
+    if (gyro.on && gyro.want) {
+      const k = reduce.matches ? 1 : WOW.GYRO.smooth;
+      const az = WOW.follow(st.az, gyro.want.az, k, true), alt = WOW.follow(st.alt, gyro.want.alt, k, false);
+      if (Math.abs(az - st.az) + Math.abs(alt - st.alt) > 1e-5) { st.az = az; st.alt = alt; dirty = true; }
+    }
     // カメラを寄せる（タップした星・星座へ。reduced motion では飛ばずに向くだけ）
     if (fly) {
       const u = Math.min(1, (now - fly.t0) / fly.ms), e = L.flyEase(u);
@@ -440,6 +449,7 @@
       if (pinch0 > 0) st.zoom = Math.max(L.ZOOM.min, Math.min(L.ZOOM.max, zoom0 * d / pinch0));
     } else {
       const dx = cur.x - prev.x, dy = cur.y - prev.y, f = 2 / k();
+      if (gyro.on && Math.abs(dx) + Math.abs(dy) > 6) stopGyro(true);
       st.az = (st.az - dx * f / Math.max(0.35, Math.cos(st.alt)) + 2 * Math.PI) % (2 * Math.PI);
       st.alt = Math.max(-5 * DEG, Math.min(89 * DEG, st.alt + dy * f));
       if (down) down.moved += Math.abs(dx) + Math.abs(dy);
@@ -646,6 +656,55 @@
   });
   let toastT = 0;
   function toast(msg) { const t = $('toast'); t.textContent = msg; t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => { t.hidden = true; }, 4200); window.__night.toast = msg; }
+  /* ---------------- 1 ジャイロ（企画書 75）: スマホを空にかざすとその方向の星 ----------------
+     DeviceOrientationEvent。iPhone は許可のボタン（requestPermission）。拒否・非対応ならドラッグのまま。
+     方位は磁北が基準（Android の deviceorientationabsolute・iPhone の webkitCompassHeading）なので、WMM2025 の偏角を足して真北に */
+  const gyro = { on: false, want: null, offset: null, rel: null, got: false, timer: 0, calib: false, evName: '' };
+  const gyroBtn = $('gyro');
+  const coarse = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+  if (gyroBtn && typeof window.DeviceOrientationEvent !== 'undefined' && (coarse || params.get('gyro') === 'show')) gyroBtn.hidden = false;
+  function onOrient(e) {
+    if (!gyro.on || e.alpha == null || e.beta == null || e.gamma == null) return;
+    const scr = (screen.orientation && screen.orientation.angle) || window.orientation || 0;
+    let alpha = e.alpha, north = true;
+    if (e.webkitCompassHeading != null && isFinite(e.webkitCompassHeading)) {
+      gyro.offset = WOW.compassOffset(gyro.offset, e.alpha, e.beta, e.gamma, e.webkitCompassHeading);
+      alpha = e.alpha + gyro.offset;
+      if (!gyro.calib && WOW.needCalibration(e.webkitCompassAccuracy)) { gyro.calib = true; toast(wt('gyroCalib')); }
+    } else if (!(e.absolute || e.type === 'deviceorientationabsolute')) north = false;
+    const v = WOW.deviceView(alpha, e.beta, e.gamma, scr);
+    let az = v.az;
+    if (north) az += WOW.declination(place.lat, place.lon, sim) * DEG;     // 磁北 → 真北
+    else { if (gyro.rel == null) gyro.rel = st.az - v.az; az += gyro.rel; }   // 北が分からない端末: いまの向きを基準に
+    gyro.want = { az: ((az % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI), alt: Math.max(-30 * DEG, Math.min(89.5 * DEG, v.alt)) };
+    if (!gyro.got) { gyro.got = true; clearTimeout(gyro.timer); toast(north ? wt('gyroOn') : wt('gyroRelative')); }
+    window.__night.gyro = { az: gyro.want.az / DEG, alt: gyro.want.alt / DEG, north };
+    dirty = true;
+  }
+  function startGyro() {
+    gyro.on = true; gyro.got = false; gyro.want = null; gyro.offset = null; gyro.rel = null; gyro.calib = false;
+    fly = null; setPressed('gyro', true);
+    gyro.evName = 'ondeviceorientationabsolute' in window ? 'deviceorientationabsolute' : 'deviceorientation';
+    addEventListener(gyro.evName, onOrient);
+    clearTimeout(gyro.timer);
+    gyro.timer = setTimeout(() => { if (gyro.on && !gyro.got) { stopGyro(false); toast(wt('gyroDenied')); } }, WOW.GYRO.noEventMs);
+  }
+  function stopGyro(say) {
+    if (!gyro.on) return;
+    gyro.on = false; gyro.want = null; clearTimeout(gyro.timer); setPressed('gyro', false);
+    if (gyro.evName) removeEventListener(gyro.evName, onOrient);
+    if (say) toast(wt('gyroOff'));
+    window.__night.gyro = null;
+  }
+  if (gyroBtn) gyroBtn.addEventListener('click', async () => {
+    if (gyro.on) { stopGyro(true); return; }
+    const DOE = window.DeviceOrientationEvent;
+    if (DOE && typeof DOE.requestPermission === 'function') {   // iPhone（iOS 13 以降）: ボタンを押したときに許可を求める
+      try { if (await DOE.requestPermission() !== 'granted') { toast(wt('gyroDenied')); return; } } catch (err) { toast(wt('gyroDenied')); return; }
+    }
+    startGyro();
+  });
+
   // 使い方
   $('helpBtn').addEventListener('click', () => { $('help').hidden = false; });
   $('helpStart').addEventListener('click', () => { $('help').hidden = true; canvas.focus({ preventScroll: true }); });
@@ -693,7 +752,7 @@
 
   window.__night = { stage: 'full', fps: [], playing, picked: null, get place() { return place.id; }, sheet: null, toast: null, get sim() { return sim; }, get limit() { return st.limit; },
     allLines: showLines, intro: () => introStart == null, meteor: () => !!meteor, forceMeteor: (dur) => { nextMeteor = 0; forcedDur = dur || 0; },
-    reduce: reduce.matches, select: (x, y) => handleTap(x, y), view: st, flying: () => !!fly, textures: () => r.textures(),
+    gyro: null, reduce: reduce.matches, select: (x, y) => handleTap(x, y), view: st, flying: () => !!fly, textures: () => r.textures(),
     loading: () => { const t = r.textures(); return params.get('tex') !== 'off' && (!t.milky || !t.moon || performance.now() < texSettle); },
     where: (name) => {   // 確かめ用: 名前の付いた星・惑星・月の画面上の位置（CSS px）。見えなければ null
       const bp = lastFrameState && lastFrameState.bodyPos[name]; if (bp) return bp.x == null ? null : { x: bp.x, y: bp.y };
