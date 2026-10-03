@@ -239,6 +239,13 @@ void main(){
   gl_FragColor = vec4(uColor * a, 1.0);
 }`;
 
+  // 星雲・星団の実写（企画書 75 の 4）: 画面の上の四角（中心と、画像の右・上の半分の向きをクリップ座標で）。黒い背景は加算で空に溶ける
+  const IMG_VS = `attribute vec2 aC; uniform vec2 uClip; uniform vec2 uBx; uniform vec2 uBy; varying vec2 vUV;
+void main(){ vUV = vec2(aC.x * 0.5 + 0.5, 0.5 - aC.y * 0.5); gl_Position = vec4(uClip + aC.x * uBx + aC.y * uBy, 0.0, 1.0); }`;
+  const IMG_FS = `precision mediump float; uniform sampler2D uTex; uniform float uAlpha; varying vec2 vUV;
+void main(){ vec2 e = min(vUV, 1.0 - vUV); float edge = smoothstep(0.0, 0.06, min(e.x, e.y));
+  vec3 c = texture2D(uTex, vUV).rgb; gl_FragColor = vec4(c * edge * uAlpha, 1.0); }`;
+
   // 流れ星: 画面上の帯（4 頂点）。aT は 0（尾）〜1（頭）
   const MET_VS = `attribute vec2 aXY; attribute float aT; varying float vT; void main(){ vT = aT; gl_Position = vec4(aXY, 0.0, 1.0); }`;
   const MET_FS = `precision mediump float; uniform float uA; varying float vT; void main(){ gl_FragColor = vec4(0.92, 0.95, 1.0, uA * vT * vT); }`;
@@ -304,6 +311,7 @@ void main(){
     const ql = program(gl, QL_VS, QL_FS, ['uColor', 'uCore', 'uDash']);
     const sp = program(gl, SP_VS, SP_FS, ['uClip', 'uHalf', 'uRot', 'uMode', 'uColor', 'uAlpha', 'uR', 'uSunDir', 'uAspect', 'uRing', 'uBands', 'uTex', 'uHasTex', 'uEarth', 'uOcc']);
     const me = program(gl, MET_VS, MET_FS, ['uA']);
+    const im = program(gl, IMG_VS, IMG_FS, ['uClip', 'uBx', 'uBy', 'uTex', 'uAlpha']);
     const ar = program(gl, ART_VS, ART_FS, ['uHz', 'uView', 'uScale', 'uTex', 'uColor', 'uAlpha', 'uMask', 'uHills']);
     const mw = MW ? milkyUniforms(MW) : null;
     const maxPt = (gl.getParameter(gl.ALIASED_POINT_SIZE_RANGE) || [1, 64])[1];
@@ -425,6 +433,31 @@ void main(){
         gl.drawElements(gl.TRIANGLES, a.count, gl.UNSIGNED_SHORT, 0);
       }
     }
+    /** 実写の画像（企画書 75 の 4）。初めて要るときに読む */
+    const photos = {};
+    function loadPhoto(id, url, onload) {
+      if (photos[id] || typeof Image === 'undefined') return;
+      photos[id] = { tex: null, at: 0 };
+      const img = new Image(); img.decoding = 'async';
+      img.onload = () => {
+        const t = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, img);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        photos[id].tex = t; photos[id].at = (typeof performance !== 'undefined' ? performance.now() : Date.now()); if (onload) onload(id);
+      };
+      img.src = url;
+    }
+    /** o: { id, clip:[x,y], bx:[x,y], by:[x,y]（クリップ座標）, alpha } */
+    function drawPhoto(o, now) {
+      const ph = photos[o.id]; if (!ph || !ph.tex) return;
+      const k = opts.instantTextures ? 1 : Math.min(1, (now - ph.at) / 800);
+      use(im); bindAttr(im, 'aC', quad, 2);
+      gl.uniform2fv(im.U.uClip, o.clip); gl.uniform2fv(im.U.uBx, o.bx); gl.uniform2fv(im.U.uBy, o.by); gl.uniform1f(im.U.uAlpha, (o.alpha == null ? 1 : o.alpha) * k);
+      gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, ph.tex); gl.uniform1i(im.U.uTex, 0);
+      gl.blendFunc(gl.ONE, gl.ONE); gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    }
+    const photoState = () => Object.fromEntries(Object.entries(photos).map(([k, p]) => [k, !!p.tex]));
     const artState = () => Object.fromEntries(Object.entries(arts).map(([k, a]) => [k, !!a.tex]));
 
     /** 画面の縮尺（立体射影 → クリップ座標） */
@@ -508,12 +541,15 @@ void main(){
       gl.drawArrays(gl.TRIANGLES, 0, 3);
       // 星雲・銀河（星の後ろ）
       gl.enable(gl.BLEND);
+      // 実写の画像（星の後ろ。企画書 75 の 4）
+      for (const o of st.photos || []) drawPhoto(o, now);
       // 星座絵（星の後ろ。企画書 75 の 3）
       if (st.art && st.art.alpha > 0) drawArt(st.art, S.toColumnMajor(st.starM), S.toColumnMajor(V), scale, hills, now);
       for (const o of st.glows || []) drawSprite(o, cssW, cssH, now);
       // 星・惑星（加算合成）
       gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
-      const common = { view: S.toColumnMajor(V), scale, dpr: st.dpr, time: st.time, twinkle: st.twinkle, zoom: st.zoom, hills, ext: sky.ext ? 1 : 0,
+      // 点の大きさは拡大 3 倍までで止める（星雲へのズーム・双眼鏡で何十倍にしても、星は点のまま。企画書 75）
+      const common = { view: S.toColumnMajor(V), scale, dpr: st.dpr, time: st.time, twinkle: st.twinkle, zoom: Math.min(st.zoom, st.pointZoom || 3), hills, ext: sky.ext ? 1 : 0,
         limit: st.sky ? st.limit : Math.min(st.limit, L.STAR_LIMIT + 0.1 - 4.6 * Math.max(st.twilight, st.dusk)),
         dim: st.sky ? (sky.dim == null ? 1 : sky.dim) : 1 - 0.6 * Math.max(st.twilight, st.dusk) };
       drawPoints(starBufs, S.toColumnMajor(st.starM), common);
@@ -574,7 +610,7 @@ void main(){
     /** 画面の 1° が何 CSS px か（画面の中心で） */
     function pxPerDeg(st, cssW, cssH) { return st.zoom / Math.tan(st.fovDeg * Math.PI / 720) * Math.min(cssW, cssH) / 2 * (Math.PI / 180) / 2; }
 
-    return { gl, draw, setBodies, setLines, project, pxPerDeg, setArt, loadArt, artState, textures: () => ({ milky: !!tex.milky, moon: !!tex.moon }) };
+    return { gl, draw, setBodies, setLines, project, pxPerDeg, setArt, loadArt, artState, loadPhoto, photoState, textures: () => ({ milky: !!tex.milky, moon: !!tex.moon }) };
   }
 
   root.NightRender = { create, viewMatrix, starAttribs, milkyUniforms, MWN };

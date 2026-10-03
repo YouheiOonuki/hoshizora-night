@@ -53,6 +53,7 @@
     <button id="gyro" type="button" class="wow" aria-pressed="false" hidden>Gyro</button>
     <button id="lightBtn" type="button" class="wow" aria-pressed="false" aria-controls="lightPanel">City lights</button>
     <button id="artBtn" type="button" class="wow" aria-pressed="false">Constellation art</button>
+    <button id="dsoBtn" type="button" class="wow" aria-pressed="false" aria-controls="dsoPanel">Nebulae</button>
     <button id="lines" type="button" aria-pressed="true">Lines</button>
     <button id="names" type="button" aria-pressed="true">Names</button>
     <button id="timeBtn" type="button" aria-pressed="false" aria-controls="timePanel">Time</button>
@@ -77,6 +78,10 @@
   <div class="lightscale"><span>Countryside</span><span>Suburbs</span><span>City</span></div>
   <p id="lightRead" class="tpnow"></p>
   <p class="note">Limiting magnitude from Schaefer (1990). The Milky Way and sky color are approximate.</p>
+</div>
+<div id="dsoPanel" class="panel" role="group" aria-label="Nebulae" hidden>
+  <div class="panel-top"><h2>Zoom to</h2><button type="button" class="icon close" data-close="dsoPanel" aria-label="Close">×</button></div>
+  <div id="dsoList" class="list"></div>
 </div>
 <div id="places" class="panel" role="dialog" aria-label="Place" hidden>
   <div class="panel-top"><h2>Whose sky?</h2><button id="closePlaces" type="button" class="icon close" aria-label="Close">×</button></div>
@@ -114,6 +119,7 @@
 <script src="/hoshizora-night/render/look.js"></script>
 <script src="/hoshizora-night/render/wmm.js"></script>
 <script src="/hoshizora-night/render/wow.js"></script>
+<script src="/hoshizora-night/render/dso.js"></script>
 <script src="/hoshizora-night/render/info.js"></script>
 <script src="/hoshizora-night/render/catalog-extra.js"></script>
 <script src="/hoshizora-night/render/prefectures.js"></script>

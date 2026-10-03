@@ -53,6 +53,7 @@
     <button id="gyro" type="button" class="wow" aria-pressed="false" hidden><span class="ad">ジャイロ</span><span class="kd">ジャイロ</span></button>
     <button id="lightBtn" type="button" class="wow" aria-pressed="false" aria-controls="lightPanel"><span class="ad">街明かり</span><span class="kd">まちの あかり</span></button>
     <button id="artBtn" type="button" class="wow" aria-pressed="false"><span class="ad">星座絵</span><span class="kd">せいざの え</span></button>
+    <button id="dsoBtn" type="button" class="wow" aria-pressed="false" aria-controls="dsoPanel"><span class="ad">星雲・星団</span><span class="kd">せいうん</span></button>
     <button id="lines" type="button" aria-pressed="true"><span class="ad">星座線</span><span class="kd">せいざの せん</span></button>
     <button id="names" type="button" aria-pressed="true"><span class="ad">名まえ</span><span class="kd">なまえ</span></button>
     <button id="timeBtn" type="button" aria-pressed="false" aria-controls="timePanel"><span class="ad">時間たび</span><span class="kd">じかんたび</span></button>
@@ -77,6 +78,10 @@
   <div class="lightscale"><span><span class="ad">田舎</span><span class="kd">いなか</span></span><span><span class="ad">郊外</span><span class="kd">まちの そと</span></span><span><span class="ad">都会</span><span class="kd">まち</span></span></div>
   <p id="lightRead" class="tpnow"></p>
   <p class="note"><span class="ad">限界等級は Schaefer (1990) の式。天の川と空の色は目安です</span><span class="kd">まちが あかるいと くらい ほしは みえないよ</span></p>
+</div>
+<div id="dsoPanel" class="panel" role="group" aria-label="星雲・星団" hidden>
+  <div class="panel-top"><h2><span class="ad">ズームする天体</span><span class="kd">ズームする てんたい</span></h2><button type="button" class="icon close" data-close="dsoPanel" aria-label="閉じる">×</button></div>
+  <div id="dsoList" class="list"></div>
 </div>
 <div id="places" class="panel" role="dialog" aria-label="場所" hidden>
   <div class="panel-top"><h2><span class="ad">どこの空を見る？</span><span class="kd">どこの そらを みる？</span></h2><button id="closePlaces" type="button" class="icon close" aria-label="閉じる">×</button></div>
@@ -114,6 +119,7 @@
 <script src="/hoshizora-night/render/look.js"></script>
 <script src="/hoshizora-night/render/wmm.js"></script>
 <script src="/hoshizora-night/render/wow.js"></script>
+<script src="/hoshizora-night/render/dso.js"></script>
 <script src="/hoshizora-night/render/info.js"></script>
 <script src="/hoshizora-night/render/catalog-extra.js"></script>
 <script src="/hoshizora-night/render/prefectures.js"></script>

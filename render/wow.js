@@ -5,9 +5,12 @@
      1 ジャイロ（端末の向き → 見る方位・高度。磁北 → 真北は WMM2025 の偏角）
      2 街明かり（空の明るさ → 見える星の限界・天の川・空の色）
      3 星座絵（ヘヴェリウス 1690。位置合わせと網は tools/build-art.py → render/art.js。押したときに初めて読む）
-   （4〜8 は順に足す） */
+     4 星雲・星団へのズーム（ESA/Hubble の実写。tools/build-dso.py → render/dso.js。画像の向きと大きさを空に合わせる）
+   （5〜8 は順に足す） */
 (function (root) {
   const W = (typeof module !== 'undefined') ? require('./wmm.js') : root.NightWMM;
+  // eslint-disable-next-line no-undef
+  const A = (typeof module !== 'undefined') ? require('../engine/astro.js') : { sun, altAz, lstRad, precessor, DEG };
   const D = Math.PI / 180;
 
   /* ---------- 1 ジャイロ ---------- */
@@ -138,6 +141,38 @@
     return { sky: B, limit: lim, milky: smooth(4.6, 6.2, lim), glow: Math.log10(1 + excess) / Math.log10(1 + max), label: u < 0.34 ? 0 : u < 0.67 ? 1 : 2 };
   }
 
+  /* ---------- 4 星雲・星団へのズーム ---------- */
+  const vecRD = (ra, dec) => [Math.cos(dec) * Math.cos(ra), Math.cos(dec) * Math.sin(ra), Math.sin(dec)];
+  /**
+   * 画像（render/dso.js の 1 件: ra・dec・w・h（度）・rot（北が画像の上から反時計回り、度））の中心と、
+   * 右の辺の中点・上の辺の中点の J2000 の向き。描くときはこの 3 点を画面に写して四角を決める（小さい天体なので平らとみなせる）
+   */
+  function photoCorners(rec) {
+    const ra = rec.ra * D, dec = rec.dec * D, r = rec.rot * D;
+    const c = vecRD(ra, dec), E = [-Math.sin(ra), Math.cos(ra), 0], N = [-Math.sin(dec) * Math.cos(ra), -Math.sin(dec) * Math.sin(ra), Math.cos(dec)];
+    const at = (dE, dN) => { const v = c.map((x, i) => x + dE * E[i] + dN * N[i]), m = Math.hypot(...v); return v.map((x) => x / m); };
+    const hw = rec.w / 2 * D, hh = rec.h / 2 * D;
+    return { c, right: at(-Math.cos(r) * hw, -Math.sin(r) * hw), top: at(-Math.sin(r) * hh, Math.cos(r) * hh) };
+  }
+  const ZOOM_DEEP = 160;   // ズーム・双眼鏡のときの拡大の上限（ふだんは 3 倍）
+  /** 天体がちょうど画面に収まる拡大（画面の短い辺の 9 割に、天体の長い辺の 1.25 倍）。描画器と同じ縮尺の式 */
+  const zoomFor = (rec, fovDeg) => Math.min(ZOOM_DEEP, 0.9 * 4 * Math.tan(fovDeg * Math.PI / 720) / (Math.max(rec.w, rec.h) * 1.25 * D));
+  /** 天体の高度（度）。J2000 → その日（engine の precessor） */
+  function altOf(ms, lat, lon, raDeg, decDeg) {
+    const [ra, dec] = A.precessor(ms)(raDeg * D, decDeg * D);
+    return A.altAz(Math.sin(dec), Math.cos(dec), ra, A.lstRad(ms, lon), Math.sin(lat * D), Math.cos(lat * D))[0] / D;
+  }
+  function sunAlt(ms, lat, lon) { const S = A.sun(ms); return A.altAz(Math.sin(S.dec), Math.cos(S.dec), S.ra, A.lstRad(ms, lon), Math.sin(lat * D), Math.cos(lat * D))[0] / D; }
+  /**
+   * いま見やすいか（高度 25° 以上・太陽 −12° 以下）。見にくければ 36 時間のうちで見やすい最初の時刻（10 分きざみ）、無ければ null
+   */
+  function viewTime(ms, lat, lon, raDeg, decDeg) {
+    const ok = (t) => altOf(t, lat, lon, raDeg, decDeg) >= 25 && sunAlt(t, lat, lon) <= -12;
+    if (ok(ms)) return ms;
+    for (let t = ms + 600e3; t <= ms + 36 * 3600e3; t += 600e3) if (ok(t)) return t + 1800e3 <= ms + 36 * 3600e3 && ok(t + 1800e3) ? t + 1800e3 : t;
+    return null;
+  }
+
   /* ---------- 文字（新しい UI の文字列。英語は k132-wow2-en-review.md でオーナーの承認待ち） ---------- */
   const TEXT = {
     ja: {
@@ -153,6 +188,14 @@
       lightNote: ['限界等級は Schaefer (1990) の式。天の川と空の色は目安です', 'まちが あかるいと くらい ほしは みえないよ'],
       bArt: ['星座絵', 'せいざの え'],
       artToast: ['ヘヴェリウスの星座絵（1690 年）を重ねました。オリオン・ふたご・しし・おおぐま', 'むかしの せいざの えを かさねたよ'],
+      bDso: ['星雲・星団', 'せいうん'],
+      dsoTitle: ['ズームする天体', 'ズームする てんたい'],
+      dsoPhoto: ['実写の画像（ESA/Hubble、CC BY 4.0）。星の点は星表の位置で重ねています', 'ほんものの しゃしんだよ'],
+      dsoCredit: ['画像', 'しゃしん'],
+      dsoChanged: ['（注記の線と文字を消して使用）', '（せんと もじを けしたよ）'],
+      dsoMoved: ['いまは見にくいので、見やすい時刻へ移りました', 'みやすい じかんに うごいたよ'],
+      dsoNone: ['この 36 時間は見やすい時刻がありません', 'しばらく みえないよ'],
+      dsoBack: ['もとの広さに戻る', 'もとに もどる'],
     },
     en: {
       bGyro: 'Gyro',
@@ -167,9 +210,17 @@
       lightNote: 'Limiting magnitude from Schaefer (1990). The Milky Way and sky color are approximate.',
       bArt: 'Constellation art',
       artToast: 'Showing Hevelius’s constellation art (1690): Orion, Gemini, Leo and Ursa Major',
+      bDso: 'Nebulae',
+      dsoTitle: 'Zoom to',
+      dsoPhoto: 'Real photo (ESA/Hubble, CC BY 4.0). Star dots are drawn at their catalog positions.',
+      dsoCredit: 'Image',
+      dsoChanged: '(annotations removed)',
+      dsoMoved: 'It is hard to see now, so the time moved to when it is easier to see',
+      dsoNone: 'No good time to see it in the next 36 hours',
+      dsoBack: 'Zoom back out',
     },
   };
 
-  const api = { magnetic, decimalYear, declination, deviceView, compassOffset, GYRO, needCalibration, follow, LIGHT, skyMag, nelm, lightPollution, TEXT };
+  const api = { magnetic, decimalYear, declination, deviceView, compassOffset, GYRO, needCalibration, follow, LIGHT, skyMag, nelm, lightPollution, photoCorners, ZOOM_DEEP, zoomFor, altOf, sunAlt, viewTime, TEXT };
   if (typeof module !== 'undefined') module.exports = api; else root.NightWow = api;
 })(typeof window !== 'undefined' ? window : globalThis);

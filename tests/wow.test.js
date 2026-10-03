@@ -141,6 +141,59 @@ test('3 星座絵: 画像は 1024 px 以内・合わせて 600 KB 以内で、�
   for (const s of ['Firmamentum Sobiescianum', 'Wikimedia Commons', 'Public Domain Mark', '1690']) assert.ok(tool.includes(s), s);
 });
 
+/* ---------- 4 星雲・星団へのズーム ---------- */
+test('4 実写: ESA/Hubble の 3 枚（M42・M45・M31）。出典は各ページの Credit の文のまま、CC BY 4.0。画像は 2048 px 以内・合わせて 600 KB 以内', () => {
+  const { DSO_IMAGES } = require('../render/dso.js');
+  assert.deepStrictEqual(DSO_IMAGES.map((d) => d.id), ['m42', 'm45', 'm31']);
+  let total = 0;
+  for (const d of DSO_IMAGES) {
+    assert.ok(/^https:\/\/esahubble\.org\/images\/[a-z0-9]+\/$/.test(d.page), d.id);
+    assert.ok(d.credit.includes('NASA') && d.credit.includes('ESA'), d.id);
+    const b = fs.readFileSync(path.join(ROOT, d.file)); total += b.length;
+    assert.ok(b[0] === 0xff && Math.max(...d.size) <= 2048, d.id);
+  }
+  assert.ok(total <= 600 * 1024, String(total));
+  // 位置と向き: ページの記載（M42 は北が上・30.03′ 角、M31 は北が右へ 125°・140.60′×32.88′）。M45 は星 7 つで決めた（残差 1′ 未満）
+  const m42 = DSO_IMAGES[0], m45 = DSO_IMAGES[1], m31 = DSO_IMAGES[2];
+  assert.ok(Math.abs(m42.ra - 83.79054) < 1e-4 && Math.abs(m42.dec + 5.41398) < 1e-4 && m42.rot === 0 && Math.abs(m42.w - 0.5005) < 1e-3);
+  assert.ok(m31.rot === -125 && Math.abs(m31.w - 140.6 / 60) < 1e-3 && Math.abs(m31.h - 32.88 / 60) < 1e-3);
+  assert.ok(m45.changed === true && m45.residualArcsec < 60 && Math.abs(m45.ra - 56.75) < 0.2 && Math.abs(m45.dec - 24.12) < 0.2);
+  const tool = read('tools/build-dso.py');
+  for (const s of ['esahubble.org/copyright', 'CC BY 4.0', 'heic0601a', 'opo0420a', 'heic2501a']) assert.ok(tool.includes(s), s);
+});
+
+test('4 向き: 画像の右の辺は北から東へ回した向き（M31 の長い軸は位置角 約 35°。銀河の長軸 約 38° と合う）、上の辺はそれと直交', () => {
+  const { DSO_IMAGES } = require('../render/dso.js');
+  const m31 = DSO_IMAGES[2], c = W.photoCorners(m31);
+  const ra = m31.ra * D, dec = m31.dec * D, E = [-Math.sin(ra), Math.cos(ra), 0], N = [-Math.sin(dec) * Math.cos(ra), -Math.sin(dec) * Math.sin(ra), Math.cos(dec)];
+  const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+  const pa = (v) => { const d = v.map((x, i) => x - c.c[i]); return Math.atan2(dot(d, E), dot(d, N)) / D; };
+  assert.ok(Math.abs(pa(c.right) - 35) < 1, String(pa(c.right)));
+  assert.ok(Math.abs(Math.abs(pa(c.right) - pa(c.top)) - 90) < 0.5 || Math.abs(Math.abs(pa(c.right) - pa(c.top)) - 270) < 0.5);
+  // 中心から右の辺までは幅の半分（度）
+  const sep = (a, b) => Math.acos(Math.min(1, dot(a, b))) / D;
+  assert.ok(Math.abs(sep(c.c, c.right) - m31.w / 2) < 1e-3 && Math.abs(sep(c.c, c.top) - m31.h / 2) < 1e-3);
+  // M42（北が上）: 上の辺は真北、右の辺は西
+  const m42 = DSO_IMAGES[0], c2 = W.photoCorners(m42);
+  const r2 = m42.ra * D, d2 = m42.dec * D, E2 = [-Math.sin(r2), Math.cos(r2), 0], N2 = [-Math.sin(d2) * Math.cos(r2), -Math.sin(d2) * Math.sin(r2), Math.cos(d2)];
+  const up = c2.top.map((x, i) => x - c2.c[i]), right = c2.right.map((x, i) => x - c2.c[i]);
+  assert.ok(dot(up, N2) > 0 && Math.abs(dot(up, E2)) < 1e-9 && dot(right, E2) < 0);
+});
+
+test('4 拡大と時刻: 天体が画面に収まる拡大（上限 160 倍）、見にくいときは 36 時間のうちの見やすい時刻へ', () => {
+  const { DSO_IMAGES } = require('../render/dso.js');
+  for (const d of DSO_IMAGES) { const z = W.zoomFor(d, 100); assert.ok(z > 20 && z <= W.ZOOM_DEEP, `${d.id} ${z}`); }
+  // 2026-10-03 21:00 JST 東京: M42 はまだ昇っていない → 夜半すぎ（高度 25° 以上・太陽 −12° 以下）へ
+  const ms = Date.parse('2026-10-03T21:00:00+09:00'), t = W.viewTime(ms, 35.69, 139.69, 83.82, -5.39);
+  assert.ok(t > ms && t < ms + 12 * 3600e3 && W.altOf(t, 35.69, 139.69, 83.82, -5.39) >= 25 && W.sunAlt(t, 35.69, 139.69) <= -12);
+  // 北極に近い空では M42 は昇らない → null
+  assert.strictEqual(W.viewTime(ms, 80, 0, 83.82, -5.39), null);
+  // 画面: 開くと時間を止め、閉じると 3 倍以内へ戻る。点の大きさは 3 倍で止める（何十倍でも星は点）
+  const app = read('app/night.js'), gl = read('render/night-gl.js');
+  assert.ok(app.includes('deep = d; setPlaying(false)') && app.includes('if (st.zoom > L.ZOOM.max) flyBack()'));
+  assert.ok(gl.includes('Math.min(st.zoom, st.pointZoom || 3)'));
+});
+
 /* ---------- 共通 ---------- */
 test('文字: 日英で項目が揃い、英語はすべて k132-wow2-en-review.md の承認待ちの文（新しく書いた英語はここだけ）', () => {
   assert.deepStrictEqual(Object.keys(W.TEXT.en).sort(), Object.keys(W.TEXT.ja).sort());

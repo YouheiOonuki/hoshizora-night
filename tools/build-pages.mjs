@@ -110,6 +110,7 @@ export function page(lang, month) {
     <button id="gyro" type="button" class="wow" aria-pressed="false" hidden>${lbl(WT.bGyro)}</button>
     <button id="lightBtn" type="button" class="wow" aria-pressed="false" aria-controls="lightPanel">${lbl(WT.bLight)}</button>
     <button id="artBtn" type="button" class="wow" aria-pressed="false">${lbl(WT.bArt)}</button>
+    <button id="dsoBtn" type="button" class="wow" aria-pressed="false" aria-controls="dsoPanel">${lbl(WT.bDso)}</button>
     <button id="lines" type="button" aria-pressed="true">${lbl(T.bLines)}</button>
     <button id="names" type="button" aria-pressed="true">${lbl(T.bNames)}</button>
     <button id="timeBtn" type="button" aria-pressed="false" aria-controls="timePanel">${lbl(T.bTime)}</button>
@@ -134,6 +135,10 @@ export function page(lang, month) {
   <div class="lightscale">${[0, 1, 2].map((i) => `<span>${en ? WT.lightLabels[i] : lbl([WT.lightLabels[0][i], WT.lightLabels[1][i]])}</span>`).join('')}</div>
   <p id="lightRead" class="tpnow"></p>
   <p class="note">${lbl(WT.lightNote)}</p>
+</div>
+<div id="dsoPanel" class="panel" role="group" aria-label="${en ? WT.bDso : WT.bDso[0]}" hidden>
+  <div class="panel-top"><h2>${lbl(WT.dsoTitle)}</h2><button type="button" class="icon close" data-close="dsoPanel" aria-label="${T.close}">×</button></div>
+  <div id="dsoList" class="list"></div>
 </div>
 <div id="places" class="panel" role="dialog" aria-label="${T.placePanel}" hidden>
   <div class="panel-top"><h2>${lbl(T.whose)}</h2><button id="closePlaces" type="button" class="icon close" aria-label="${T.close}">×</button></div>
@@ -173,6 +178,7 @@ export function page(lang, month) {
 <script src="/hoshizora-night/render/look.js"></script>
 <script src="/hoshizora-night/render/wmm.js"></script>
 <script src="/hoshizora-night/render/wow.js"></script>
+<script src="/hoshizora-night/render/dso.js"></script>
 <script src="/hoshizora-night/render/info.js"></script>
 <script src="/hoshizora-night/render/catalog-extra.js"></script>
 <script src="/hoshizora-night/render/prefectures.js"></script>

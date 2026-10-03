@@ -124,6 +124,34 @@ const WINTER = '#35.69,139.69,1800021600';  // 2027-01-15 23:00 JST 東京（冬
     R.features[3] = F;
   }
 
+  /* 4 星雲・星団へのズーム: 実写が向き・大きさを合わせて出て、出典（ESA/Hubble の Credit の文）が見える。閉じると戻る */
+  if (want(4)) {
+    const F = { shots: [] };
+    const AUTUMN = '#35.69,139.69,1798462800';   // 2026-12-28 21:00 JST 東京（M31 が西の空・M45 と M42 が東〜南東）
+    for (const [dev, tag] of [[PHONE, 'phone'], [PC, 'pc']]) {
+      const { ctx, p, errors } = await open(dev, `?probe=off${AUTUMN}`, { reducedMotion: 'reduce' });
+      F[tag] = {};
+      for (const id of ['m42', 'm45', 'm31']) {
+        await p.evaluate((id) => window.__night.openDso(id), id);
+        await p.waitForFunction((id) => window.__night.photoState()[id], id, { timeout: 15000 });
+        await p.waitForTimeout(1300);
+        F[tag][id] = await p.evaluate(() => ({ deep: window.__night.deep, zoom: window.__night.view.zoom, sheet: window.__night.sheet,
+          credit: document.querySelector('.dso-credit a') && document.querySelector('.dso-credit a').textContent, href: document.querySelector('.dso-credit a') && document.querySelector('.dso-credit a').href }));
+        F.shots.push(await shot(p, `4-dso-${tag}-${id}.png`));
+      }
+      await p.click('#dsoBack'); await p.waitForTimeout(400);
+      F[tag].back = await p.evaluate(() => ({ deep: window.__night.deep, zoom: window.__night.view.zoom, sheet: window.__night.sheet }));
+      // 一覧から（昼に開いて押すと、見やすい時刻へ移る）
+      await p.click('#dsoBtn'); await p.waitForTimeout(200);
+      F.shots.push(await shot(p, `4-dso-${tag}-list.png`));
+      F[tag].errors = errors;
+      await ctx.close();
+    }
+    const okOne = (o, id) => o.deep === id && o.sheet === 'dso' && o.zoom > 20 && /esahubble\.org\/images\//.test(o.href) && o.credit.length > 10;
+    F.ok = ['phone', 'pc'].every((t) => ['m42', 'm45', 'm31'].every((id) => okOne(F[t][id], id)) && F[t].back.deep === null && F[t].back.zoom <= 3 && !F[t].errors.length);
+    R.features[4] = F;
+  }
+
   await browser.close(); srv.close();
   fs.writeFileSync(path.join(OUT, 'result.json'), JSON.stringify(R, null, 2));
   const ng = Object.entries(R.features).filter(([, f]) => !f.ok).map(([k]) => k);

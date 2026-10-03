@@ -54,6 +54,10 @@
   let place = P.find((p) => p.id === 'pref-13');
   let sim = Date.now(), playing = !reduce.matches, lastReal = performance.now(), speedIdx = 0;
   let showLines = true, showNames = true, showAster = false, red = false;
+  // 企画書 75: 星雲・星団へのズーム中の天体（deep）。ズーム中は拡大の上限を上げる
+  const DSOI = (window.NightDso && window.NightDso.DSO_IMAGES) || [];
+  let deep = null;
+  const zMax = () => (deep ? WOW.ZOOM_DEEP : L.ZOOM.max);
   let selected = null, picked = null, quiz = null, quizSeq = 0, sheetKind = null, fly = null;
   const placeName = (p) => p.name && !EN && kids && p.kana ? p.kana : L.placeText(p, P, EN).main;
 
@@ -308,9 +312,9 @@
     const mwF = starF * (1 - 0.7 * moonF) * lp.milky;
     for (const d of DSOS) {
       const h = S.apply(starM, d.v), p = h[2] > 0 ? proj(h) : null; d.p = p;
-      if (p) glows.push({ mode: 0, x: p.x, y: p.y, size: d.r * pxDeg * 1.1, aspect: 0.42, rot: -d.tilt, color: [0.86, 0.87, 1.0], alpha: 0.5 * mwF * ease });
+      if (p && !deep) glows.push({ mode: 0, x: p.x, y: p.y, size: d.r * pxDeg * 1.1, aspect: 0.42, rot: -d.tilt, color: [0.86, 0.87, 1.0], alpha: 0.5 * mwF * ease });
     }
-    for (const s of picks) if (s.flag && s.vis) glows.push({ mode: 0, x: s.x, y: s.y, size: (s.flag === 'cl' ? 0.9 : 0.6) * pxDeg, color: s.flag === 'cl' ? [0.66, 0.78, 1.0] : [0.86, 0.9, 1.0], alpha: (s.flag === 'cl' ? 0.5 : 0.38) * mwF * ease });
+    if (!deep) for (const s of picks) if (s.flag && s.vis) glows.push({ mode: 0, x: s.x, y: s.y, size: (s.flag === 'cl' ? 0.9 : 0.6) * pxDeg, color: s.flag === 'cl' ? [0.66, 0.78, 1.0] : [0.86, 0.9, 1.0], alpha: (s.flag === 'cl' ? 0.5 : 0.38) * mwF * ease });
     /* 太陽・惑星・月（板） */
     const sprites = [];
     const sunP = sunHz[2] > -0.02 ? proj(sunHz) : null;
@@ -356,7 +360,13 @@
       const A = at(tail), B = at(head);
       if (A && B) met = { a: A.clip, b: B.clip, w: 2.6 * dprCap(), alpha: Math.sin(Math.PI * Math.min(1, k)) * 0.95 * starF * (1 - moonF * 0.5) };
     }
-    r.draw({ art: showArt ? { alpha: 0.34 * starF * ease, color: [0.62, 0.72, 1.0] } : null, starM, H, az: st.az, alt: st.alt, zoom: st.zoom, fovDeg: st.fovDeg, dpr: dprCap(), time: twinkleOn ? now / 1000 : 0, now, cssW: cw, cssH: ch,
+    /* 星雲・星団の実写（企画書 75 の 4）: 画像の中心・右・上の 3 点を星と同じ行列で画面へ */
+    const photos = [];
+    if (deep) {
+      const c = WOW.photoCorners(deep), pc = proj(S.apply(starM, c.c), 0.05), pr = proj(S.apply(starM, c.right), 0.05), pt = proj(S.apply(starM, c.top), 0.05);
+      if (pc && pr && pt) photos.push({ id: deep.id, clip: pc.clip, bx: [pr.clip[0] - pc.clip[0], pr.clip[1] - pc.clip[1]], by: [pt.clip[0] - pc.clip[0], pt.clip[1] - pc.clip[1]], alpha: 0.95 * Math.max(0.15, starF) });
+    }
+    r.draw({ photos, pointZoom: 3, art: showArt ? { alpha: 0.34 * starF * ease, color: [0.62, 0.72, 1.0] } : null, starM, H, az: st.az, alt: st.alt, zoom: st.zoom, fovDeg: st.fovDeg, dpr: dprCap(), time: twinkleOn ? now / 1000 : 0, now, cssW: cw, cssH: ch,
       twinkle: twinkleOn ? 1 : 0, limit, twilight: L.twilightWeight(sim, place.lat, place.lon) * (1 - dayF), dusk: 1 - ease,
       milky: st.stage === 'full' ? mwF * ease : 0, milkyTex: st.stage === 'full', noise: true, hills: true,
       sky: { sun: sunHz, day: dayF, glow: 1, moon: mH, moonK: moonF, ext: 1, dim: 1 - 0.3 * (1 - starF), city: lp.glow },
@@ -372,7 +382,7 @@
         label(X.conLabel(c), sx / n, sy / n - 12, c === selected ? 'con hot' : 'con');
       }
       if (st.zoom > 1.35 || cw > 900) for (const s of picks) if (s.vis && s.name && s.mag <= 2.3 && s !== picked) label(s.name, s.x, s.y, 'star', 8, 0, false);
-      if (st.zoom > 1.3) for (const d of DSOS) if (d.p) label(EN ? d.en : kids ? 'アンドロメダぎんが' : d.name, d.p.x, d.p.y, 'dso', d.r * pxDeg * 0.5 + 4, -4, false);
+      if (st.zoom > 1.3 && !deep) for (const d of DSOS) if (d.p) label(EN ? d.en : kids ? 'アンドロメダぎんが' : d.name, d.p.x, d.p.y, 'dso', d.r * pxDeg * 0.5 + 4, -4, false);
     } else if (showNames && !quiz && selected) {
       // 昼でも選んだ星座の名前は出す
     }
@@ -422,7 +432,7 @@
   /** その向き（地平座標 h）へ寄せる。上に説明シートが来る画面では少し上に置く */
   function flyTo(h, zoomTo) {
     const az1 = Math.atan2(h[0], h[1]), alt1 = Math.max(-2 * DEG, Math.min(80 * DEG, Math.asin(Math.max(-1, Math.min(1, h[2])))));
-    const z1 = zoomTo == null ? st.zoom : Math.max(L.ZOOM.min, Math.min(L.ZOOM.max, zoomTo));
+    const z1 = zoomTo == null ? Math.min(st.zoom, zMax()) : Math.max(L.ZOOM.min, Math.min(zMax(), zoomTo));
     // スマホ（縦長）では説明シートが下半分に出るので、目当てを画面の上 3 割に置く（高度を下げて見る）
     const off = innerWidth < 900 ? 0.22 * ch / (r.pxPerDeg(Object.assign({}, st, { zoom: z1 }), cw, ch) || 1) * DEG : 0;
     // PC では説明シートが右に出るので、目当てを画面の左寄りに置く
@@ -447,7 +457,7 @@
     const cur = { x: e.clientX, y: e.clientY }; ptrs.set(e.pointerId, cur);
     if (ptrs.size === 2) {
       const [a, b] = [...ptrs.values()], d = Math.hypot(a.x - b.x, a.y - b.y);
-      if (pinch0 > 0) st.zoom = Math.max(L.ZOOM.min, Math.min(L.ZOOM.max, zoom0 * d / pinch0));
+      if (pinch0 > 0) st.zoom = Math.max(L.ZOOM.min, Math.min(zMax(), zoom0 * d / pinch0));
     } else {
       const dx = cur.x - prev.x, dy = cur.y - prev.y, f = 2 / k();
       if (gyro.on && Math.abs(dx) + Math.abs(dy) > 6) stopGyro(true);
@@ -464,7 +474,7 @@
   };
   canvas.addEventListener('pointerup', up);
   canvas.addEventListener('pointercancel', (e) => { ptrs.delete(e.pointerId); down = null; });
-  canvas.addEventListener('wheel', (e) => { e.preventDefault(); fly = null; st.zoom = Math.max(L.ZOOM.min, Math.min(L.ZOOM.max, st.zoom * Math.exp(-e.deltaY / 500))); dirty = true; }, { passive: false });
+  canvas.addEventListener('wheel', (e) => { e.preventDefault(); fly = null; st.zoom = Math.max(L.ZOOM.min, Math.min(zMax(), st.zoom * Math.exp(-e.deltaY / 500))); dirty = true; }, { passive: false });
   addEventListener('keydown', (e) => {
     if (e.key === 'Escape') { closeSheet(); closePanels(); $('help').hidden = true; return; }
     if (e.target !== canvas && e.target !== document.body) return;
@@ -472,7 +482,7 @@
     if (e.key === 'ArrowLeft') st.az -= step; else if (e.key === 'ArrowRight') st.az += step;
     else if (e.key === 'ArrowUp') st.alt = Math.min(89 * DEG, st.alt + step);
     else if (e.key === 'ArrowDown') st.alt = Math.max(-5 * DEG, st.alt - step);
-    else if (e.key === '+' || e.key === ';') st.zoom = Math.min(L.ZOOM.max, st.zoom * 1.15);
+    else if (e.key === '+' || e.key === ';') st.zoom = Math.min(zMax(), st.zoom * 1.15);
     else if (e.key === '-') st.zoom = Math.max(L.ZOOM.min, st.zoom / 1.15);
     else return;
     st.az = (st.az + 2 * Math.PI) % (2 * Math.PI); fly = null; dirty = true; e.preventDefault();
@@ -521,6 +531,12 @@
     let bb = null, bd = Infinity;
     for (const [id, p] of Object.entries(bp)) { if (p.x == null || p.alt < 0) continue; const d = Math.hypot(p.x - x, p.y - y); if (d < (p.r || 4) + 18 && d < bd) { bd = d; bb = id; } }
     if (bb) { openBody(bb, true); return; }
+    // 星雲・星団（実写のある天体。企画書 75 の 4）
+    const M3 = S.starMatrix(sim, place.lat, place.lon);
+    for (const d of DSOI) {
+      const h = S.apply(M3, S.vec(d.ra * DEG, d.dec * DEG)), p = h[2] > 0 ? proj(h) : null;
+      if (p && Math.hypot(p.x - x, p.y - y) < Math.max(18, Math.max(d.w, d.h) * r.pxPerDeg(st, cw, ch) * 0.4)) { openDso(d, true); return; }
+    }
     let bs = null; bd = 24;
     for (const s of picks) { if (!s.vis || !s.name) continue; const d = Math.hypot(s.x - x, s.y - y) - (s.mag < 1.5 ? 4 : 0); if (d < bd) { bd = d; bs = s; } }
     if (bs) { openStar(bs, true); return; }
@@ -531,7 +547,10 @@
   /* ---------------- 説明シート ---------------- */
   const sheet = $('sheet'), sheetBody = $('sheetBody');
   function showSheet(html, kind) { sheetBody.innerHTML = html; sheetKind = kind; sheet.hidden = false; sheet.scrollTop = 0; window.__night.sheet = kind.type; }
-  function closeSheet() { sheet.hidden = true; sheetKind = null; selected = null; picked = null; dirty = true; window.__night.sheet = null; window.__night.picked = null; }
+  function closeSheet() {
+    sheet.hidden = true; sheetKind = null; selected = null; picked = null; dirty = true; window.__night.sheet = null; window.__night.picked = null;
+    if (deep) { deep = null; window.__night.deep = null; if (st.zoom > L.ZOOM.max) flyBack(); }
+  }
   $('sheetClose').addEventListener('click', closeSheet);
   function mark(item) { picked = item; pickedAt = performance.now(); dirty = true; window.__night.picked = item ? pickText(item) : null; }
   function openCon(c, go) {
@@ -564,6 +583,7 @@
     else if (sheetKind.type === 'star') openStar(sheetKind.s);
     else if (sheetKind.type === 'body') openBody(sheetKind.id);
     else if (sheetKind.type === 'quiz') showSheet(I.quizResult(sheetKind.sc, sheetKind.n, X), sheetKind);
+    else if (sheetKind.type === 'dso') openDso(sheetKind.d, false);
   }
 
   /* ---------------- クイズ（軽量版と同じ: いま出ている星座から 5 問・ヒントで答えの方へ） ---------------- */
@@ -636,7 +656,7 @@
   $('red').addEventListener('click', () => { red = !red; document.body.classList.toggle('red', red); setPressed('red', red); if (red) toast(TT('redToast')); });
   if ($('moonBtn')) $('moonBtn').addEventListener('click', () => { closePanels(); openBody('moon', true); });
   // 時間たび
-  function closePanels() { for (const [p, b] of [['timePanel', 'timeBtn'], ['places', 'place'], ['lightPanel', 'lightBtn']]) { $(p).hidden = true; if (b === 'place') $(b).setAttribute('aria-expanded', 'false'); else setPressed(b, b === 'lightBtn' ? lightU > 0 : false); } }
+  function closePanels() { for (const [p, b] of [['timePanel', 'timeBtn'], ['places', 'place'], ['lightPanel', 'lightBtn'], ['dsoPanel', 'dsoBtn']]) { $(p).hidden = true; if (b === 'place') $(b).setAttribute('aria-expanded', 'false'); else setPressed(b, b === 'lightBtn' ? lightU > 0 : false); } }
   $('timeBtn').addEventListener('click', () => { const open = $('timePanel').hidden; closePanels(); if (open) { $('timePanel').hidden = false; setPressed('timeBtn', true); } });
   document.querySelectorAll('[data-close]').forEach((b) => b.addEventListener('click', closePanels));
   document.querySelectorAll('#timePanel [data-d]').forEach((b) => b.addEventListener('click', () => jumpTo(sim + Number(b.dataset.d) * 86400000)));
@@ -734,6 +754,43 @@
     window.__night.art = showArt;
   });
 
+  /* ---------------- 4 星雲・星団へのズーム（企画書 75）: ESA/Hubble の実写を、向きと大きさを空に合わせて重ねる ---------------- */
+  function openDso(d, go) {
+    selected = null; mark(null); deep = d; setPlaying(false);
+    r.loadPhoto(d.id, '/hoshizora-night/' + d.file, () => { dirty = true; texSettle = performance.now() + 900; });
+    const esc = (t) => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+    showSheet(`<p class="sh-kana">${esc(wt('dsoTitle'))}</p><h2 class="sh-name">${esc(EN ? d.en : d.name)}</h2>${EN ? '' : `<p class="sh-en">${esc(d.en)}</p>`}`
+      + `<p class="sh-story">${esc(wt('dsoPhoto'))}</p>`
+      + `<p class="dso-credit">${esc(wt('dsoCredit'))}: <a href="${d.page}" rel="noopener">${esc(d.credit)}</a>${d.changed ? ' ' + esc(wt('dsoChanged')) : ''}</p>`
+      + `<button type="button" class="wide" id="dsoBack">${esc(wt('dsoBack'))}</button>`, { type: 'dso', d });
+    $('dsoBack').addEventListener('click', closeSheet);
+    window.__night.deep = d.id;
+    const h = S.apply(S.starMatrix(sim, place.lat, place.lon), S.vec(d.ra * DEG, d.dec * DEG));
+    if (go && h[2] > 0) flyTo(h, WOW.zoomFor(d, st.fovDeg));
+    dirty = true;
+  }
+  /** ズームから戻る: 向きはそのまま、拡大を 1.6 倍へ */
+  function flyBack() {
+    const V = R.viewMatrix(st.az, st.alt);
+    flyTo([V[6], V[7], V[8]], Math.min(L.FLY.zoomTo, L.ZOOM.max));
+  }
+  function buildDso() {
+    const box = $('dsoList'); box.textContent = '';
+    for (const d of DSOI) {
+      const b = document.createElement('button'); b.type = 'button'; b.textContent = EN ? d.en : d.name.replace(/（.*）/, '');
+      b.addEventListener('click', () => {
+        closePanels();
+        const t = WOW.viewTime(sim, place.lat, place.lon, d.ra, d.dec);
+        if (t == null) { toast(wt('dsoNone')); return; }
+        if (t !== sim) { jumpTo(t); toast(wt('dsoMoved')); }
+        openDso(d, true);
+      });
+      box.appendChild(b);
+    }
+  }
+  buildDso();
+  $('dsoBtn').addEventListener('click', () => { const open = $('dsoPanel').hidden; closePanels(); if (open) { $('dsoPanel').hidden = false; setPressed('dsoBtn', true); } });
+
   // 使い方
   $('helpBtn').addEventListener('click', () => { $('help').hidden = false; });
   $('helpStart').addEventListener('click', () => { $('help').hidden = true; canvas.focus({ preventScroll: true }); });
@@ -781,7 +838,7 @@
 
   window.__night = { stage: 'full', fps: [], playing, picked: null, get place() { return place.id; }, sheet: null, toast: null, get sim() { return sim; }, get limit() { return st.limit; },
     allLines: showLines, intro: () => introStart == null, meteor: () => !!meteor, forceMeteor: (dur) => { nextMeteor = 0; forcedDur = dur || 0; },
-    gyro: null, light: null, art: false, artState: () => r.artState(), setLight: (u) => { lightSlider.value = String(Math.round(u * WOW.LIGHT.steps)); lightSlider.dispatchEvent(new Event('input')); }, reduce: reduce.matches, select: (x, y) => handleTap(x, y), view: st, flying: () => !!fly, textures: () => r.textures(),
+    gyro: null, light: null, art: false, artState: () => r.artState(), deep: null, photoState: () => r.photoState(), openDso: (id) => openDso(DSOI.find((d) => d.id === id), true), setLight: (u) => { lightSlider.value = String(Math.round(u * WOW.LIGHT.steps)); lightSlider.dispatchEvent(new Event('input')); }, reduce: reduce.matches, select: (x, y) => handleTap(x, y), view: st, flying: () => !!fly, textures: () => r.textures(),
     loading: () => { const t = r.textures(); return params.get('tex') !== 'off' && (!t.milky || !t.moon || performance.now() < texSettle); },
     where: (name) => {   // 確かめ用: 名前の付いた星・惑星・月の画面上の位置（CSS px）。見えなければ null
       const bp = lastFrameState && lastFrameState.bodyPos[name]; if (bp) return bp.x == null ? null : { x: bp.x, y: bp.y };
