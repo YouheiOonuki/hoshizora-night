@@ -34,6 +34,7 @@ export const META = {
   },
 };
 
+const LINES_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 18l5-8 6 3 5-9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><circle cx="4" cy="18" r="1.8"/><circle cx="9" cy="10" r="1.8"/><circle cx="15" cy="13" r="1.8"/><circle cx="20" cy="4" r="1.8"/></svg>';
 const PLAY_SVG = '<svg class="i-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg><svg class="i-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg>';
 
 /** 1 ページ。lang: ja/en、month: null（入口）か 1〜12 */
@@ -83,11 +84,13 @@ export function page(lang, month) {
 </head>
 <body class="app">
 <canvas id="sky"></canvas>
+<div id="cons" class="cons" aria-hidden="true"></div>
 <div id="dirs" class="dirs" aria-hidden="true">${T.dirs.map((d) => `<span>${d}</span>`).join('')}</div>
 <p id="pick" class="pick" hidden></p>
 <header class="hud">
   <p class="clock"><span id="date"></span><span id="time"></span></p>
   <button id="place" type="button" class="chip" aria-expanded="false" aria-controls="places"></button>
+  <span id="placeSub" class="placesub" hidden></span>
 </header>
 <ul id="tonight" class="tonight"></ul>
 <div class="bar">
@@ -96,6 +99,7 @@ export function page(lang, month) {
     <button id="play" type="button" class="icon" aria-label="${T.pause}">${PLAY_SVG}</button>
     <button id="now" type="button">${T.now}</button>
     <button id="share" type="button">${T.share}</button>
+    <button id="lines" type="button" class="icon" aria-pressed="false" aria-label="${T.lines}">${LINES_SVG}</button>
     <a id="light" href="${light}">${T.light}</a>
   </div>
 </div>
@@ -116,6 +120,7 @@ export function page(lang, month) {
 <script>window.NightEvents = window.module.exports; delete window.module;</script>
 <script src="/hoshizora-night/render/sky.js"></script>
 <script src="/hoshizora-night/render/look.js"></script>
+<script src="/hoshizora-night/render/catalog-extra.js"></script>
 <script src="/hoshizora-night/render/prefectures.js"></script>
 <script src="/hoshizora-night/render/night-gl.js"></script>
 <script src="/hoshizora-night/app/night.js"></script>

@@ -30,16 +30,19 @@
   }
 
   /* ---------- 2 星 ---------- */
-  /** にじみの半径（px、DPR 1）。1 等 6・2 等 4・3 等 3・4 等 2・5 等以下 1.5 */
+  /** にじみの半径（px、DPR 1）。7.15.1 は 1 等 6・2 等 4・3 等 3・4 等 2・5 等以下 1.5。
+      オーナー決定 2026-10-03（「わぁきれい」を優先）で明るい星を大きく: 0 等 10・1 等 7.5・2 等 5・3 等 3.5・4 等 2.5・5 等 1.8・6 等 1.4 */
   function haloRadius(mag) {
-    if (mag <= 1.5) return 6;
-    if (mag <= 2.5) return 4;
-    if (mag <= 3.5) return 3;
-    if (mag <= 4.5) return 2;
-    return 1.5;
+    if (mag <= 0.5) return 10;
+    if (mag <= 1.5) return 7.5;
+    if (mag <= 2.5) return 5;
+    if (mag <= 3.5) return 3.5;
+    if (mag <= 4.5) return 2.5;
+    if (mag <= 5.5) return 1.8;
+    return 1.4;
   }
-  const MAX_SAT = 0.2;
-  /** B−V → 色（0〜1）。彩度（HSV の S）は 20% まで */
+  const MAX_SAT = 0.35;   // 7.15.1 は 20%。オーナー決定 2026-10-03 で 35% まで（色をはっきり）
+  /** B−V → 色（0〜1）。彩度（HSV の S）は MAX_SAT まで */
   function starColor(bv) {
     const t = Math.max(0, Math.min(1, (bv + 0.4) / 2.4));
     const blue = [0.62, 0.74, 1.0], white = [1.0, 0.98, 0.95], red = [1.0, 0.62, 0.38];
@@ -64,6 +67,38 @@
 
   /* ---------- 9 動かない端末 ---------- */
   const FPS = { probeMs: 3000, min: 24, reducedMag: 4 };
+
+  /* ---------- オーナー決定 2026-10-03 で足したもの（「わぁきれい」） ---------- */
+  const STAR_LIMIT = 6.5;                              // 追加の星表（render/catalog-extra.js）まで
+  const INTRO = { ms: 3500, duskZenith: '#1a2a5c', duskHorizon: '#6a6fa0' };   // 開いたとき 1 回: 夕方の空から夜へ、星が明るい順に灯る
+  const METEOR = { meanSec: 30, peakMeanSec: 10, minAlt: 25, lenDeg: [14, 26], durMs: [700, 1200] };   // 流れ星（極大の夜は多め）
+  /** 次の流れ星までの秒（指数分布。u は 0〜1 の乱数） */
+  const meteorWait = (u, peak) => -Math.log(1 - Math.min(u, 0.999)) * (peak ? METEOR.peakMeanSec : METEOR.meanSec);
+  /** 山並みの高さ（度）。方位 az（ラジアン）の滑らかな関数。0〜約 2.6°。GLSL にも同じ式（render/night-gl.js の HILLS） */
+  function hillDeg(az) {
+    const h = 0.6 + 0.9 * Math.sin(2 * az + 0.5) + 0.6 * Math.sin(5 * az + 2.1) + 0.35 * Math.sin(11 * az + 4.0) + 0.2 * Math.sin(23 * az + 1.3);
+    return Math.max(0, h) * 0.9;
+  }
+  const LINES_ALL_ALPHA = 0.22;                        // 星座線を全部出すとき（タップした星座は LINE.alpha）
+
+  /* ---------- 場所の表示（位置情報なら最寄りの都道府県庁＋「付近」と緯度経度） ---------- */
+  function coordText(lat, lon, en) {
+    const a = Math.abs(lat).toFixed(1), o = Math.abs(lon).toFixed(1);
+    return en ? `${a}°${lat >= 0 ? 'N' : 'S'} ${o}°${lon >= 0 ? 'E' : 'W'}` : `${lat >= 0 ? '北緯' : '南緯'}${a}° ${lon >= 0 ? '東経' : '西経'}${o}°`;
+  }
+  const kmBetween = (a, b) => {
+    const r = Math.PI / 180, x = Math.sin(a.lat * r) * Math.sin(b.lat * r) + Math.cos(a.lat * r) * Math.cos(b.lat * r) * Math.cos((a.lon - b.lon) * r);
+    return 6371 * Math.acos(Math.max(-1, Math.min(1, x)));
+  };
+  /** { main, sub }。prefs は都道府県庁の一覧。150 km より遠ければ緯度経度だけ */
+  function placeText(p, prefs, en) {
+    if (p.id !== 'here' && p.id !== 'shared') return { main: en ? p.en : p.name, sub: '' };
+    let best = null, bd = Infinity;
+    for (const q of prefs) { const d = kmBetween(p, q); if (d < bd) { bd = d; best = q; } }
+    const c = coordText(p.lat, p.lon, en);
+    if (!best || bd > 150) return { main: c, sub: '' };
+    return { main: en ? `${L_TEXT.en.near} ${best.en}` : `${best.name}${L_TEXT.ja.near}`, sub: c };
+  }
   function median(xs) {
     if (!xs.length) return 0;
     const s = [...xs].sort((a, b) => a - b), m = s.length >> 1;
@@ -150,19 +185,20 @@
   const TEXT = {
     ja: { now: 'いま', pause: '止める', play: '動かす', share: '共有', copied: 'コピーしました', here: '現在地', light: '軽い版',
       time: '時刻', close: '閉じる', about: '運営者情報', privacy: 'プライバシーポリシー', guide: '使い方', geoFail: '位置情報を使えませんでした',
-      dirs: ['北', '東', '南', '西'] },
-    en: { now: 'Now', pause: 'Pause', play: 'Play', share: 'Share', copied: 'Copied', here: 'My location', light: 'Light version',
+      dirs: ['北', '東', '南', '西'], near: '付近', lines: '星座線' },
+    en: { now: 'Now', pause: 'Pause', play: 'Play', share: 'Share', copied: '✓', here: 'Here', light: 'Light version',
       time: 'Time', close: 'Close', about: 'About', privacy: 'Privacy', guide: 'Guide', geoFail: 'Location unavailable',
-      dirs: ['N', 'E', 'S', 'W'] },
+      dirs: ['N', 'E', 'S', 'W'], near: 'Near', lines: 'Constellations' },
   };
-  /** 英語の語数（空白で区切る。方位の 1 文字も 1 語と数える） */
+  const L_TEXT = TEXT;
+  /** 英語の語数（空白で区切り、英字を含むものを数える。方位の 1 文字も 1 語。記号の ✓ は数えない） */
   function wordCount(dict) {
     let n = 0;
-    for (const v of Object.values(dict)) for (const s of [].concat(v)) n += String(s).trim().split(/\s+/).filter(Boolean).length;
+    for (const v of Object.values(dict)) for (const s of [].concat(v)) n += String(s).trim().split(/\s+/).filter((w) => /[A-Za-z]/.test(w)).length;
     return n;
   }
 
   const api = { SKY, hex, sunAltDeg, twilightWeight, haloRadius, starColor, saturation, MAX_SAT, TWINKLE, twinkles, twinkleHz, SPEED, ZOOM, LINE,
-    FPS, median, nextStage, formatHash, parseHash, localMonth, shareUrl, SHOWERS, tonight, nightOf, TEXT, wordCount };
+    FPS, median, nextStage, STAR_LIMIT, INTRO, METEOR, meteorWait, hillDeg, LINES_ALL_ALPHA, coordText, placeText, kmBetween, formatHash, parseHash, localMonth, shareUrl, SHOWERS, tonight, nightOf, TEXT, wordCount };
   if (typeof module !== 'undefined') module.exports = api; else root.NightLook = api;
 })(typeof window !== 'undefined' ? window : globalThis);

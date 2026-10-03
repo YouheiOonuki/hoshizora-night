@@ -18,6 +18,11 @@
   for (let i = 0; i < CATALOG.length; i += 4) {
     stars.push({ v: S.vec(CATALOG[i] / 1000 * 15 * DEG, CATALOG[i + 1] / 100 * DEG), mag: CATALOG[i + 2] / 100, bv: CATALOG[i + 3] / 100 });
   }
+  // 追加の星表（6.5 等まで。オーナー決定 2026-10-03）。通常版の星表には手を付けない
+  const EXTRA = window.CATALOG_EXTRA || [];
+  for (let i = 0; i < EXTRA.length; i += 4) {
+    stars.push({ v: S.vec(EXTRA[i] / 1000 * 15 * DEG, EXTRA[i + 1] / 100 * DEG), mag: EXTRA[i + 2] / 100, bv: EXTRA[i + 3] / 100 });
+  }
   const enStar = (jp) => STAR_EN[String(jp).split('（')[0]] || '';
   const picks = [];   // タップで選べるもの: 星座の星・1 等星ほか
   CONS.forEach((c) => c.ss.forEach((s, i) => picks.push({ v: S.vec(s[0] * 15 * DEG, s[1] * DEG), mag: s[2], con: c, i,
@@ -29,11 +34,11 @@
   // 英語版は世界の都市（通常版の英語と同じ表。日本の都市は都道府県庁の一覧と重なるので外す）＋都道府県庁
   const WORLD = LOCS_WORLD.filter((l) => l.tz !== 'Asia/Tokyo');
   const LOCS_EN = EN ? [...WORLD, ...P] : P;
-  const st = { az: Math.PI, alt: (innerHeight > innerWidth ? 32 : 28) * DEG, zoom: 1, fovDeg: 100, limit: 6.6, stage: 'full', lineAlpha: 0 };
+  const st = { az: Math.PI, alt: (innerHeight > innerWidth ? 38 : 30) * DEG, zoom: 1, fovDeg: 100, limit: L.STAR_LIMIT + 0.1, stage: 'full', lineAlpha: 0, allLines: false };
   let place = P.find((p) => p.id === 'pref-13');
   let sim = Date.now(), playing = !reduce.matches, lastReal = performance.now();
   let picked = null, pickedAt = 0;
-  const placeName = (p) => (p.id === 'here' ? T.here : EN ? p.en : p.name);
+  const placeName = (p) => L.placeText(p, P, EN).main;
 
   function deviceTz() { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Tokyo'; } catch (e) { return 'Asia/Tokyo'; } }
   if (EN) {   // 英語版は端末のタイムゾーンの都市を既定に（通常版の英語と同じ考え方）
@@ -45,7 +50,7 @@
   const shared = L.parseHash(location.hash);
   if (shared) {
     const near = LOCS_EN.find((p) => Math.abs(p.lat - shared.lat) < 0.006 && Math.abs(p.lon - shared.lon) < 0.006);
-    place = near || { id: 'shared', name: `${shared.lat.toFixed(2)}, ${shared.lon.toFixed(2)}`, en: `${shared.lat.toFixed(2)}, ${shared.lon.toFixed(2)}`, lat: shared.lat, lon: shared.lon, tz: deviceTz() };
+    place = near || { id: 'shared', lat: shared.lat, lon: shared.lon, tz: deviceTz() };
     sim = shared.ms; playing = false;
   } else if (Date.parse(params.get('t') || '') > 0) {   // 通常版・天文カレンダーと同じ ?t=<日時>&loc=<場所>
     sim = Date.parse(params.get('t'));
@@ -73,7 +78,7 @@
 
   /* ---------------- 描画器 ---------------- */
   let r;
-  try { r = R.create(canvas, stars); } catch (e) { showLight(); return; }
+  try { r = R.create(canvas, stars, MW); } catch (e) { showLight(); return; }
   const dprCap = () => Math.min(window.devicePixelRatio || 1, 2);
   function fit() {
     const d = dprCap(), w = Math.round(canvas.clientWidth * d), h = Math.round(canvas.clientHeight * d);
@@ -109,9 +114,15 @@
   function renderTonight(key) {
     tonightKey = key;
     const ul = $('tonight'); ul.textContent = '';
-    for (const e of L.tonight(sim, O, BODY_INFO, EN ? 'en' : 'ja')) { const li = document.createElement('li'); li.textContent = e.title; li.dataset.kind = e.kind; ul.appendChild(li); }
+    const evs = L.tonight(sim, O, BODY_INFO, EN ? 'en' : 'ja');
+    tonightPeak = evs.some((e) => e.kind === 'meteor');
+    for (const e of evs) { const li = document.createElement('li'); li.textContent = e.title; li.dataset.kind = e.kind; ul.appendChild(li); }
   }
-  function placeLabel() { $('place').textContent = placeName(place); }
+  function placeLabel() {
+    const t = L.placeText(place, P, EN);
+    $('place').textContent = t.main;
+    const sub = $('placeSub'); sub.textContent = t.sub; sub.hidden = !t.sub;
+  }
 
   /* ---------------- 1 フレーム ---------------- */
   let dirty = true;
@@ -147,6 +158,20 @@
     lastReal = now;
     const twinkleOn = !reduce.matches;
     const fading = picked && st.lineAlpha < L.LINE.alpha;
+    // 開いたときの演出（1 回。reduced motion では無し）: 夕方の空から夜へ、星が明るい順に灯る
+    let intro = 1;
+    if (introStart != null) { intro = Math.min(1, (now - introStart) / L.INTRO.ms); if (intro >= 1) introStart = null; dirty = true; }
+    const ease = intro * intro * (3 - 2 * intro);
+    // 流れ星（reduced motion では無し。極大の夜は多め）
+    let meteorDraw = null;
+    if (!reduce.matches && intro >= 1) {
+      if (!meteor && now >= nextMeteor) meteor = spawnMeteor(now);
+      if (meteor) {
+        const k = (now - meteor.t0) / meteor.dur;
+        if (k >= 1) { meteor = null; nextMeteor = now + L.meteorWait(Math.random(), tonightPeak) * 1000; }
+        else meteorDraw = meteor; dirty = true;
+      }
+    }
     if (!dirty && !twinkleOn && !fading) return;
     fit();
     if (fading) st.lineAlpha = reduce.matches ? L.LINE.alpha : Math.min(L.LINE.alpha, L.LINE.alpha * (now - pickedAt) / L.LINE.fadeMs);
@@ -159,11 +184,27 @@
       if (a) {
         const toward = moonState.h.map((x, i) => x + 0.03 * (sunH[i] - x)), b = r.project(toward, view, cw, ch);
         const angle = b ? Math.atan2(-(b.y - a.y), b.x - a.x) : 0;
-        moonDraw = { clip: a.clip, size: 22 * dprCap() * Math.sqrt(st.zoom), k: moonState.M.illum, angle };
+        moonDraw = { clip: a.clip, size: 40 * dprCap() * Math.sqrt(st.zoom), k: moonState.M.illum, angle };
       }
     }
+    // 流れ星の頭と尾（地平座標の大円の上を動く）を画面へ
+    let met = null;
+    if (meteorDraw) {
+      const k = (now - meteorDraw.t0) / meteorDraw.dur, head = Math.min(1, k * 1.15), tail = Math.max(0, k * 1.15 - 0.6);
+      const at = (u) => { const a = meteorDraw.ang * u, v = meteorDraw.p.map((x, i) => x * Math.cos(a) + meteorDraw.q[i] * Math.sin(a)); return v[2] > 0 ? r.project(v, view, cw, ch) : null; };
+      const A = at(tail), B = at(head);
+      if (A && B) met = { a: A.clip, b: B.clip, w: 2.6 * dprCap(), alpha: Math.sin(Math.PI * Math.min(1, k)) * 0.95 };
+    }
+    const moonUp = moonState.h[2] > 0 ? moonState.M.illum : 0;
     r.draw({ starM, H, az: st.az, alt: st.alt, zoom: st.zoom, fovDeg: st.fovDeg, dpr: dprCap(), time: twinkleOn ? now / 1000 : 0,
-      twinkle: twinkleOn ? 1 : 0, limit: st.limit, twilight: L.twilightWeight(sim, place.lat, place.lon), moon: moonDraw, lineAlpha: picked ? st.lineAlpha : 0 });
+      twinkle: twinkleOn ? 1 : 0, limit: Math.min(st.limit, -1.5 + (st.limit + 1.5) * ease), twilight: L.twilightWeight(sim, place.lat, place.lon),
+      dusk: 1 - ease, milky: st.stage === 'full' ? (1 - 0.65 * moonUp) * ease : 0, noise: true, hills: true,   // 4 等までに絞った段階では天の川も描かない（画素ごとの計算が重いので）
+      moon: moonDraw, lineAlpha: picked ? st.lineAlpha : 0, allLines: st.allLines ? L.LINES_ALL_ALPHA : 0, meteor: met });
+    // 星座の名前（星座線を全部出しているとき）
+    if (st.allLines) conLabels.forEach((o) => {
+      const h = S.apply(starM, o.v), p = h[2] > 0.03 ? r.project(h, view, cw, ch) : null;
+      if (p && p.x > 0 && p.x < cw && p.y > 0 && p.y < ch && !(picked && picked.con === o.c)) { o.el.style.transform = `translate(${p.x}px, ${p.y}px) translate(-50%, -50%)`; o.el.hidden = false; } else o.el.hidden = true;
+    });
     // 方位
     dirs.forEach((el, i) => {
       const az = i * Math.PI / 2, p = r.project([Math.sin(az), Math.cos(az), 0], view, cw, ch);
@@ -177,6 +218,36 @@
     updateClock();
     dirty = false;
   }
+
+  /* ---------------- 演出・流れ星・星座線 ---------------- */
+  let introStart = reduce.matches ? null : -1;   // 最初のフレームで時刻を入れる
+  let meteor = null, nextMeteor = 0, tonightPeak = false, forcedDur = 0;
+  function spawnMeteor(now) {
+    // 見ている向きのあたり・高度 25〜70° のどこかから、ランダムな向きに 8〜18° 流れる
+    const M = L.METEOR, rnd = Math.random;
+    const alt = (M.minAlt + rnd() * 45) * DEG, az = st.az + (rnd() - 0.5) * 1.6;   // 見ている向きのあたり
+    const p = [Math.cos(alt) * Math.sin(az), Math.cos(alt) * Math.cos(az), Math.sin(alt)];
+    let t = [rnd() - 0.5, rnd() - 0.5, -0.3 - rnd() * 0.5];         // 下向きぎみ
+    const d = t[0] * p[0] + t[1] * p[1] + t[2] * p[2]; t = t.map((x, i) => x - d * p[i]);
+    const n = Math.hypot(...t), q = t.map((x) => x / n);
+    const dur = forcedDur || (M.durMs[0] + rnd() * (M.durMs[1] - M.durMs[0])); forcedDur = 0;
+    return { t0: now, p, q, ang: (M.lenDeg[0] + rnd() * (M.lenDeg[1] - M.lenDeg[0])) * DEG, dur };
+  }
+  const conLabels = CONS.map((c) => {
+    let v = [0, 0, 0]; c.ss.forEach((s) => { const u = S.vec(s[0] * 15 * DEG, s[1] * DEG); v = v.map((x, i) => x + u[i]); });
+    const n = Math.hypot(...v), el = document.createElement('span'); el.className = 'conname'; el.textContent = EN ? c.en : c.jp; el.hidden = true;
+    $('cons').appendChild(el);
+    return { v: v.map((x) => x / n), el, c };
+  });
+  const allSegs = [];
+  CONS.forEach((c) => c.ln.forEach(([a, b]) => allSegs.push([c.ss[a], c.ss[b]].map((s) => S.vec(s[0] * 15 * DEG, s[1] * DEG)))));
+  $('lines').addEventListener('click', () => {
+    st.allLines = !st.allLines; dirty = true;
+    r.setLines(st.allLines ? allSegs : null, 'all');
+    $('lines').setAttribute('aria-pressed', String(st.allLines));
+    if (!st.allLines) conLabels.forEach((o) => { o.el.hidden = true; });
+    window.__night.allLines = st.allLines;
+  });
 
   function showLight() {
     const box = $('slow'); if (box) box.hidden = false;
@@ -285,6 +356,7 @@
   if (reduce.addEventListener) reduce.addEventListener('change', () => { if (reduce.matches) setPlaying(false); dirty = true; });
 
   window.__night = { stage: 'full', fps: [], playing, picked: null, place: place.id, get sim() { return sim; }, get limit() { return st.limit; },
+    allLines: false, intro: () => introStart == null, meteor: () => !!meteor, forceMeteor: (dur) => { nextMeteor = 0; forcedDur = dur || 0; },   // 確かめ用（dur ミリ秒の長い流れ星）
     reduce: reduce.matches, select: (x, y) => pickAt(x, y), view: st,
     // 確かめ用（tools/check-k132.cjs）: 名前の付いた星の画面上の位置（CSS px）。見えなければ null
     where: (name) => {
@@ -295,5 +367,8 @@
   setPlaying(playing);
   placeLabel();
   addEventListener('resize', () => { dirty = true; });
-  requestAnimationFrame((t) => { lastReal = t; frame(t); document.documentElement.dataset.ready = '1'; });
+  requestAnimationFrame((t) => {
+    lastReal = t; if (introStart === -1) introStart = t; nextMeteor = t + (4 + Math.random() * 8) * 1000;
+    frame(t); document.documentElement.dataset.ready = '1';
+  });
 })();

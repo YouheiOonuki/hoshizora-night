@@ -107,7 +107,7 @@ test('初回の読み込み: JS は gzip 後 600 KB 以内、画像は 1 MB 以�
 });
 
 test('外向きの要求を出すコードが無い（fetch・XMLHttpRequest・sendBeacon・WebSocket・EventSource）', () => {
-  for (const f of ['app/night.js', 'render/look.js', 'render/night-gl.js', 'render/sky.js', 'render/gate.js', 'render/prefectures.js']) {
+  for (const f of ['app/night.js', 'render/look.js', 'render/night-gl.js', 'render/sky.js', 'render/gate.js', 'render/prefectures.js', 'render/catalog-extra.js']) {
     const src = read(f).replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
     assert.ok(!/\bfetch\s*\(|XMLHttpRequest|sendBeacon|WebSocket|EventSource|https?:\/\//.test(src), f);
   }
