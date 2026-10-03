@@ -1,0 +1,116 @@
+{
+  "width": 1200,
+  "height": 630,
+  "entryMonth": 1,
+  "note": "tools/build-og.cjs で作る。K124 の結果カードもこの 12 枚を使ってよい",
+  "months": [
+    {
+      "month": 1,
+      "file": "og/01.jpg",
+      "at": "2027-01-15T21:00:00+09:00",
+      "lat": 35.69,
+      "lon": 139.69,
+      "alt": "1月15日21時、東京の南の空",
+      "altEn": "The southern sky over Tokyo at 9 p.m. on January 15"
+    },
+    {
+      "month": 2,
+      "file": "og/02.jpg",
+      "at": "2027-02-15T21:00:00+09:00",
+      "lat": 35.69,
+      "lon": 139.69,
+      "alt": "2月15日21時、東京の南の空",
+      "altEn": "The southern sky over Tokyo at 9 p.m. on February 15"
+    },
+    {
+      "month": 3,
+      "file": "og/03.jpg",
+      "at": "2027-03-15T21:00:00+09:00",
+      "lat": 35.69,
+      "lon": 139.69,
+      "alt": "3月15日21時、東京の南の空",
+      "altEn": "The southern sky over Tokyo at 9 p.m. on March 15"
+    },
+    {
+      "month": 4,
+      "file": "og/04.jpg",
+      "at": "2027-04-15T21:00:00+09:00",
+      "lat": 35.69,
+      "lon": 139.69,
+      "alt": "4月15日21時、東京の南の空",
+      "altEn": "The southern sky over Tokyo at 9 p.m. on April 15"
+    },
+    {
+      "month": 5,
+      "file": "og/05.jpg",
+      "at": "2027-05-15T21:00:00+09:00",
+      "lat": 35.69,
+      "lon": 139.69,
+      "alt": "5月15日21時、東京の南の空",
+      "altEn": "The southern sky over Tokyo at 9 p.m. on May 15"
+    },
+    {
+      "month": 6,
+      "file": "og/06.jpg",
+      "at": "2027-06-15T21:00:00+09:00",
+      "lat": 35.69,
+      "lon": 139.69,
+      "alt": "6月15日21時、東京の南の空",
+      "altEn": "The southern sky over Tokyo at 9 p.m. on June 15"
+    },
+    {
+      "month": 7,
+      "file": "og/07.jpg",
+      "at": "2027-07-15T21:00:00+09:00",
+      "lat": 35.69,
+      "lon": 139.69,
+      "alt": "7月15日21時、東京の南の空",
+      "altEn": "The southern sky over Tokyo at 9 p.m. on July 15"
+    },
+    {
+      "month": 8,
+      "file": "og/08.jpg",
+      "at": "2027-08-15T21:00:00+09:00",
+      "lat": 35.69,
+      "lon": 139.69,
+      "alt": "8月15日21時、東京の南の空",
+      "altEn": "The southern sky over Tokyo at 9 p.m. on August 15"
+    },
+    {
+      "month": 9,
+      "file": "og/09.jpg",
+      "at": "2027-09-15T21:00:00+09:00",
+      "lat": 35.69,
+      "lon": 139.69,
+      "alt": "9月15日21時、東京の南の空",
+      "altEn": "The southern sky over Tokyo at 9 p.m. on September 15"
+    },
+    {
+      "month": 10,
+      "file": "og/10.jpg",
+      "at": "2027-10-15T21:00:00+09:00",
+      "lat": 35.69,
+      "lon": 139.69,
+      "alt": "10月15日21時、東京の南の空",
+      "altEn": "The southern sky over Tokyo at 9 p.m. on October 15"
+    },
+    {
+      "month": 11,
+      "file": "og/11.jpg",
+      "at": "2027-11-15T21:00:00+09:00",
+      "lat": 35.69,
+      "lon": 139.69,
+      "alt": "11月15日21時、東京の南の空",
+      "altEn": "The southern sky over Tokyo at 9 p.m. on November 15"
+    },
+    {
+      "month": 12,
+      "file": "og/12.jpg",
+      "at": "2027-12-15T21:00:00+09:00",
+      "lat": 35.69,
+      "lon": 139.69,
+      "alt": "12月15日21時、東京の南の空",
+      "altEn": "The southern sky over Tokyo at 9 p.m. on December 15"
+    }
+  ]
+}

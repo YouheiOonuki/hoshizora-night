@@ -1,4 +1,4 @@
-/* 生成物・手で編集しない: YouheiOonuki/hoshizora-sanpo@50b4f42ca794c647dfa0380a6d8ec5b9b55e9b2b の data.js を tools/sync-from-sanpo.mjs で写した（確認日 2026-10-02、元の sha256 597338e90dc530aece3ebf6f18e5d0db5b79c9208cad7289827f2915f7bbb5fe） */
+/* 生成物・手で編集しない: YouheiOonuki/hoshizora-sanpo@df115bbb281ce3bf148581f45a85494d035ebe96 の data.js を tools/sync-from-sanpo.mjs で写した（確認日 2026-10-03、元の sha256 597338e90dc530aece3ebf6f18e5d0db5b79c9208cad7289827f2915f7bbb5fe） */
 'use strict';
 /* =================================================================
    ほしぞらさんぽ — 星座・天体のデータ（ブラウザでも Node でも読める）

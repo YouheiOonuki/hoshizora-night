@@ -1,19 +1,27 @@
 {
   "repo": "YouheiOonuki/hoshizora-sanpo",
-  "commit": "50b4f42ca794c647dfa0380a6d8ec5b9b55e9b2b",
-  "checked": "2026-10-02",
+  "commit": "df115bbb281ce3bf148581f45a85494d035ebe96",
+  "checked": "2026-10-03",
   "files": {
     "astro.js": {
+      "from": "astro.js",
       "sha256": "38e75694913d9819e57e9c222feb93c4e2cc34059c032f46e2644fe3a2f07663",
       "bytes": 8353
     },
     "catalog.js": {
+      "from": "catalog.js",
       "sha256": "fbc219cb5b234568fb59de1070d00a6444ea25b8b458740c887ae9e1bc1db007",
       "bytes": 62941
     },
     "data.js": {
+      "from": "data.js",
       "sha256": "597338e90dc530aece3ebf6f18e5d0db5b79c9208cad7289827f2915f7bbb5fe",
       "bytes": 48157
+    },
+    "official-events.js": {
+      "from": "tools/official-events.js",
+      "sha256": "98694d04fa0d2ef9137c1933fd99f80c92f6771f428b7284beefbfbc0d5e6c8f",
+      "bytes": 16911
     }
   }
 }
