@@ -13,7 +13,7 @@ const meta = JSON.parse(fs.readFileSync(path.join(ENGINE, 'SOURCE.json'), 'utf8'
 test('SOURCE.json に写し元のコミットと確認日がある', () => {
   assert.match(meta.commit, /^[0-9a-f]{40}$/);
   assert.match(meta.checked, /^\d{4}-\d{2}-\d{2}$/);
-  assert.deepStrictEqual(Object.keys(meta.files).sort(), ['astro.js', 'catalog.js', 'data.js', 'official-events.js']);
+  assert.deepStrictEqual(Object.keys(meta.files).sort(), ['astro.js', 'catalog.js', 'data.js', 'official-events.js', 'text.js']);
   assert.strictEqual(meta.files['official-events.js'].from, 'tools/official-events.js');
 });
 
@@ -29,5 +29,5 @@ for (const f of Object.keys(meta.files)) {
 }
 
 test('engine/ に写し以外のファイルを置かない', () => {
-  assert.deepStrictEqual(fs.readdirSync(ENGINE).sort(), ['SOURCE.json', 'astro.js', 'catalog.js', 'data.js', 'official-events.js']);
+  assert.deepStrictEqual(fs.readdirSync(ENGINE).sort(), ['SOURCE.json', 'astro.js', 'catalog.js', 'data.js', 'official-events.js', 'text.js']);
 });

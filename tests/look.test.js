@@ -34,17 +34,21 @@ test('2 にじみの半径（オーナー決定 2026-10-03 で 7.15.1 より大�
   for (let m = -1.5; m < 6.5; m += 0.1) assert.ok(L.haloRadius(m) >= L.haloRadius(m + 0.1));
 });
 
-test('2 星の色: B−V から、彩度 35% 以内（オーナー決定 2026-10-03。7.15.1 は 20%）', () => {
+test('2 星の色: B−V → 温度（Ballesteros）→ 黒体の色、彩度 50% 以内（企画書 74「本物らしい色」。7.15.1 は 20%、2026-10-03 に 35%）', () => {
   const { CATALOG } = require('../engine/catalog.js');
   const { CATALOG_EXTRA } = require('../render/catalog-extra.js');
   let max = 0;
   for (const C of [CATALOG, CATALOG_EXTRA]) for (let i = 3; i < C.length; i += 4) max = Math.max(max, L.saturation(L.starColor(C[i] / 100)));
-  assert.strictEqual(L.MAX_SAT, 0.35);
+  assert.strictEqual(L.MAX_SAT, 0.5);
   assert.ok(max <= L.MAX_SAT + 1e-9, String(max));
-  assert.ok(max > 0.3, '色が薄すぎる');
-  // 青い星は青寄り、赤い星は赤寄り
-  const b = L.starColor(-0.3), r = L.starColor(1.8);
-  assert.ok(b[2] > b[0] && r[0] > r[2]);
+  assert.ok(max > 0.4, '色が薄すぎる');
+  // 太陽（B−V 0.65）は約 5,800 K、ベガ（0.0）は約 10,000 K、ベテルギウス（1.85）は約 3,300 K
+  assert.ok(Math.abs(L.bvTemp(0.65) - 5800) < 200, String(L.bvTemp(0.65)));
+  assert.ok(Math.abs(L.bvTemp(0) - 10000) < 400 && Math.abs(L.bvTemp(1.85) - 3300) < 200);
+  // 青い星は青寄り、赤い星は赤寄り、太陽はほぼ白。B−V が大きいほど青の成分が減る（逆転しない）
+  const b = L.starColor(-0.3), r = L.starColor(1.8), sun = L.starColor(0.65);
+  assert.ok(b[2] > b[0] && r[0] > r[2] && L.saturation(sun) < 0.12);
+  for (let bv = -0.4; bv < 2; bv += 0.05) assert.ok(L.starColor(bv)[2] / L.starColor(bv)[0] >= L.starColor(bv + 0.05)[2] / L.starColor(bv + 0.05)[0] - 1e-9, String(bv));
 });
 
 test('2 またたき: 3 等より明るい星だけ、±10%、0.5〜1 Hz', () => {
@@ -54,8 +58,9 @@ test('2 またたき: 3 等より明るい星だけ、±10%、0.5〜1 Hz', () =>
   for (const s of [0, 0.3, 0.999]) { const f = L.twinkleHz(s); assert.ok(f >= 0.5 && f <= 1, String(f)); }
 });
 
-test('3 日周運動: 1 秒 ＝ 1 分（60 倍）。4 ピンチは 1〜3 倍。線は #8fb0ff・30%・1 秒', () => {
+test('3 日周運動: 1 秒 ＝ 1 分（60 倍）が既定で、時間たびの 600・3600 倍も（軽量版と同じ）。4 ピンチは 1〜3 倍。線は #8fb0ff・30%・1 秒', () => {
   assert.strictEqual(L.SPEED, 60);
+  assert.deepStrictEqual(L.SPEEDS, [60, 600, 3600]);
   assert.deepStrictEqual(L.ZOOM, { min: 1, max: 3 });
   assert.deepStrictEqual(L.LINE, { color: '#a8c4ff', alpha: 0.7, fadeMs: 1000, widthCss: 1.5 });
 });
@@ -82,10 +87,19 @@ test('わぁきれい（オーナー決定 2026-10-03）: 6.5 等まで・演出
   assert.ok(L.LINES_ALL_ALPHA < L.LINE.alpha);
 });
 
-test('5 英語の UI 文字列は 20 語以内', () => {
-  const n = L.wordCount(L.TEXT.en);
-  assert.ok(n <= 20, `${n} 語`);
-  assert.deepStrictEqual(Object.keys(L.TEXT.en).sort(), Object.keys(L.TEXT.ja).sort());
+test('5 文字（企画書 74 で 20 語の上限を外した）: 日英で項目が揃い、英語の文は軽量版の英語の画面と同じもの', () => {
+  // ひらがなモード（日本語だけ）の 2 項目を除いて、日英で同じ項目
+  const ja = Object.keys(L.TEXT.ja).filter((k) => !['bKids', 'helpKana'].includes(k)).sort();
+  const en = Object.keys(L.TEXT.en).filter((k) => !['bMoon', 'lat', 'lon', 'go'].includes(k)).sort();
+  assert.deepStrictEqual(en, ja);
+  // 軽量版の英語の画面（hoshizora-sanpo の en/index.html。tools/sync-from-sanpo.mjs が tests/fixtures/ に写す）にある文字列をそのまま使う。
+  // それ以外は企画書 74 より前からフル版にあった英語（K132 の 20 語）だけ。新しく書いた英語は出典の 2 行（CREDITS）だけで、全文は k132-parity-en-review.md
+  const BEFORE = ['Now', 'Pause', 'Play', 'Share', '✓', 'Here', 'Light version', 'Location unavailable', 'N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW', 'Near'];
+  const flat = (v) => (v && typeof v === 'object') ? Object.values(v).flatMap(flat) : [v];
+  const SANPO_EN = require('node:fs').readFileSync(require('node:path').join(__dirname, 'fixtures', 'sanpo-en-strings.txt'), 'utf8').split('\n');
+  const fromSanpo = flat(L.TEXT.en).filter((s) => !BEFORE.includes(s));
+  for (const s of BEFORE) assert.ok(!SANPO_EN.includes(s), `${s} は軽量版にあるので BEFORE から外す`);
+  for (const s of fromSanpo) assert.ok(SANPO_EN.includes(s), `軽量版の英語の画面に無い: ${s}`);
 });
 
 test('8 共有の # は #lat,lon,unixtime で、行って戻ると同じ', () => {

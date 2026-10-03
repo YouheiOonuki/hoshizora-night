@@ -42,28 +42,32 @@ const GEM = '#35.69,139.69,1797256800';   // 2026-12-14 23:00 東京（ふたご
     await shot(p, `iphone-${lang}.png`);
     const lay = await p.evaluate(() => {
       const box = (s) => { const r = document.querySelector(s).getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height, r: r.right, b: r.bottom }; };
-      const parts = { clock: box('.clock'), place: box('#place'), tonight: box('#tonight'), bar: box('.bar'), slider: box('#slider') };
+      const parts = { clock: box('.clock'), place: box('#place'), tonight: box('#tonight'), bar: box('.bottom'), slider: box('#slider') };
       const inView = Object.entries(parts).filter(([, b]) => b.w > 0).every(([, b]) => b.x >= 0 && b.y >= 0 && b.r <= innerWidth + 0.5 && b.b <= innerHeight + 0.5);
       const over = (a, b) => a.w && b.w && a.x < b.r && b.x < a.r && a.y < b.b && b.y < a.b;
       const pairs = [['clock', 'tonight'], ['place', 'tonight'], ['clock', 'bar'], ['tonight', 'bar']].filter(([a, b]) => over(parts[a], parts[b]));
       return { scrollW: document.scrollingElement.scrollWidth, innerW: innerWidth, inView, overlaps: pairs, timePx: getComputedStyle(document.getElementById('time')).fontSize,
-        tonight: document.getElementById('tonight').textContent, time: document.getElementById('time').textContent, btn: [...document.querySelectorAll('.btns button, .btns a')].map((b) => b.getBoundingClientRect().height) };
+        tonight: document.getElementById('tonight').textContent, time: document.getElementById('time').textContent, btn: [...document.querySelectorAll('.bottom .row button, .dock button')].map((b) => b.getBoundingClientRect().height) };
     });
     // 星をタップ（ベテルギウス）
     const pos = await p.evaluate((n) => window.__night.where(n), lang === 'en' ? 'Betelgeuse' : 'ベテルギウス');
     if (pos) { await p.touchscreen.tap(pos.x, pos.y); await p.waitForTimeout(1300); }
     lay.picked = await p.evaluate(() => window.__night.picked);
+    lay.sheet = await p.evaluate(() => window.__night.sheet);   // 企画書 74: タップで説明シート
     await shot(p, `iphone-${lang}-tap.png`);
-    await p.click('#lines'); await p.waitForTimeout(400);
-    lay.allLines = await p.evaluate(() => ({ on: window.__night.allLines, names: [...document.querySelectorAll('.conname')].filter((e) => !e.hidden).map((e) => e.textContent) }));
-    await shot(p, `iphone-${lang}-lines.png`);
+    // 星座線と名前は既定で全部（軽量版と同じ）。タップした星座（オリオン座）は金色の名前
+    lay.allLines = await p.evaluate(() => ({ on: window.__night.allLines, names: [...document.querySelectorAll('.labels .con')].filter((e) => !e.hidden).map((e) => e.textContent),
+      hot: [...document.querySelectorAll('.labels .con.hot')].filter((e) => !e.hidden).map((e) => e.textContent) }));
+    await p.click('#sheetClose'); await p.click('#lines'); await p.waitForTimeout(400);
+    lay.linesOff = await p.evaluate(() => window.__night.allLines === false);
+    await shot(p, `iphone-${lang}-lines-off.png`);
     await p.click('#lines');
     await p.click('#place'); await p.waitForTimeout(300);
     await shot(p, `iphone-${lang}-places.png`);
     lay.panelScrollW = await p.evaluate(() => document.scrollingElement.scrollWidth);
     lay.errors = errors;
     lay.ok = lay.scrollW <= lay.innerW && lay.panelScrollW <= lay.innerW && lay.inView && !lay.overlaps.length && lay.timePx === '28px' && !errors.length && !!lay.picked
-      && lay.allLines.on === true && lay.allLines.names.includes(lang === 'en' ? 'Taurus' : 'おうし座') && !lay.allLines.names.includes(lang === 'en' ? 'Orion' : 'オリオン座');   // タップした星座（オリオン座）は名前を重ねない
+      && lay.sheet === 'star' && lay.allLines.on === true && lay.allLines.names.includes(lang === 'en' ? 'Taurus' : 'おうし座') && lay.allLines.hot.includes(lang === 'en' ? 'Orion' : 'オリオン座') && lay.linesOff;
     R.layout[lang] = lay;
     await ctx.close();
   }
@@ -174,7 +178,7 @@ const GEM = '#35.69,139.69,1797256800';   // 2026-12-14 23:00 東京（ふたご
     const toast = await p.evaluate(() => !document.getElementById('toast').hidden && document.getElementById('toast').textContent);
     await p.click('#placeList button[data-id="pref-47"]'); await p.waitForTimeout(300);
     R.geoDenied = { toast, place: await p.evaluate(() => window.__night.place), label: await p.textContent('#place'), count: await p.locator('#placeList button').count() };
-    R.geoDenied.ok = R.geoDenied.place === 'pref-47' && R.geoDenied.label === '沖縄県' && R.geoDenied.count === 47;
+    R.geoDenied.ok = R.geoDenied.place === 'pref-47' && R.geoDenied.label === '沖縄県' && R.geoDenied.count === 49;   // 都道府県庁 47 か所＋石垣島・シドニー（企画書 74: 軽量版の場所）
     await ctx.close();
   }
   /* 7b 位置情報を許可（渋谷のあたり）→「東京都付近」と緯度経度。英語は Near Tokyo */

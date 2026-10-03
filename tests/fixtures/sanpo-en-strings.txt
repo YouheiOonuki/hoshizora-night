@@ -1,0 +1,52 @@
+Web Planetarium
+--
+日本語
+?
+Hint
+← 12 hours earlier | slide to move time | 12 hours later →
+−1 month
+−1 day
++1 day
++1 month
+Back to now
+Whose sky?
+📍 Use my location
+Latitude (south is −)
+Longitude (west is −)
+Go
+Your location is used only to calculate the sky and is never sent anywhere. For your location or typed coordinates, times use your device’s time zone.
+Lines
+Names
+Time
+Moon phase
+Quiz
+Asterisms
+Red light
+✕
+HOSHIZORA SANPO
+Drag
+Look around (swipe on a phone)
+Pinch / wheel
+Zoom in and out
+Tap
+Open notes on a constellation, star, the Moon or a planet
+Move time and watch the stars, Sun and Moon move
+Place
+Pick a city or type a latitude and longitude
+Keeps your eyes used to the dark outdoors
+Start
+Full version
+Sky calendar
+Printable planisphere
+How it works
+About
+Privacy policy
+yorozu-craft (more tools)
+Delete everything saved (reset)
+Night sky. Drag to look around, pinch to zoom, tap a constellation for notes. Arrow keys also work.
+How to use
+Time travel
+Move time
+Menu
+Details
+Close
