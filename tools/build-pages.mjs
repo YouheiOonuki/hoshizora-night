@@ -107,6 +107,7 @@ export function page(lang, month) {
   </div>
   <nav id="dock" class="dock" aria-label="${T.menu}">
     <button id="gyro" type="button" class="wow" aria-pressed="false" hidden>${lbl(WT.bGyro)}</button>
+    <button id="lightBtn" type="button" class="wow" aria-pressed="false" aria-controls="lightPanel">${lbl(WT.bLight)}</button>
     <button id="lines" type="button" aria-pressed="true">${lbl(T.bLines)}</button>
     <button id="names" type="button" aria-pressed="true">${lbl(T.bNames)}</button>
     <button id="timeBtn" type="button" aria-pressed="false" aria-controls="timePanel">${lbl(T.bTime)}</button>
@@ -124,6 +125,13 @@ export function page(lang, month) {
   <div class="panel-top"><span id="tpNow" class="tpnow"></span><button type="button" class="icon close" data-close="timePanel" aria-label="${T.close}">×</button></div>
   <div class="tprow"><button type="button" data-month="-1">${lbl(T.monthPrev)}</button><button type="button" data-d="-1">${lbl(T.dayPrev)}</button><button type="button" data-d="1">${lbl(T.dayNext)}</button><button type="button" data-month="1">${lbl(T.monthNext)}</button></div>
   <div class="tprow"><button type="button" id="tpNowBtn" class="gold">${lbl(T.backNow)}</button><button type="button" id="tpPlay" aria-pressed="false"></button><button type="button" id="tpSpeed"></button></div>
+</div>
+<div id="lightPanel" class="panel" role="group" aria-label="${en ? WT.bLight : WT.bLight[0]}" hidden>
+  <div class="panel-top"><h2>${lbl(WT.bLight)}</h2><button type="button" class="icon close" data-close="lightPanel" aria-label="${T.close}">×</button></div>
+  <input id="lightSlider" type="range" min="0" max="${W.LIGHT.steps}" step="1" value="0" aria-label="${en ? WT.bLight : WT.bLight[0]}">
+  <div class="lightscale">${[0, 1, 2].map((i) => `<span>${en ? WT.lightLabels[i] : lbl([WT.lightLabels[0][i], WT.lightLabels[1][i]])}</span>`).join('')}</div>
+  <p id="lightRead" class="tpnow"></p>
+  <p class="note">${lbl(WT.lightNote)}</p>
 </div>
 <div id="places" class="panel" role="dialog" aria-label="${T.placePanel}" hidden>
   <div class="panel-top"><h2>${lbl(T.whose)}</h2><button id="closePlaces" type="button" class="icon close" aria-label="${T.close}">×</button></div>

@@ -71,6 +71,33 @@ const WINTER = '#35.69,139.69,1800021600';  // 2027-01-15 23:00 JST 東京（冬
     R.features[1] = F;
   }
 
+  /* 2 街明かり: つまみで田舎 → 都会。限界等級・天の川が下がり、空が明るくなる（同じ空を並べて撮る） */
+  if (want(2)) {
+    const F = { shots: [], steps: [] };
+    const SUMMER = '#35.69,139.69,1817899200';   // 2027-08-10 21:00 JST 東京（夏の天の川が南に）
+    for (const [dev, tag] of [[PHONE, 'phone'], [PC, 'pc']]) {
+      const { ctx, p, errors } = await open(dev, `?probe=off&view=180,45${SUMMER}`, { reducedMotion: 'reduce' });
+      await p.click('#lightBtn'); await p.waitForTimeout(200);
+      for (const [u, name] of [[0, 'country'], [0.5, 'suburb'], [1, 'city']]) {
+        await p.evaluate((u) => window.__night.setLight(u), u); await p.waitForTimeout(300);
+        const st = await p.evaluate(() => ({ ...window.__night.light, read: document.getElementById('lightRead').textContent }));
+        if (tag === 'phone') F.steps.push(st);
+        // 空の明るさ（画面の中ほどの平均の明るさ）
+        const buf = await p.screenshot({ clip: { x: 0, y: 140, width: dev.viewport.width, height: 260 } });
+        st.png = buf.length;
+        F.shots.push(await shot(p, `2-light-${tag}-${name}.png`));
+      }
+      await p.click('[data-close="lightPanel"]'); await p.waitForTimeout(200);
+      F[tag + 'PressedAfterClose'] = await p.evaluate(() => document.getElementById('lightBtn').getAttribute('aria-pressed'));
+      F[tag + 'Errors'] = errors;
+      await ctx.close();
+    }
+    const [a, b, c] = F.steps;
+    F.ok = a.limit >= 6.5 && b.limit < a.limit && c.limit < 4 && a.milky === 1 && c.milky === 0 && /6\.5/.test(a.read)
+      && F.phonePressedAfterClose === 'true' && !F.phoneErrors.length && !F.pcErrors.length;
+    R.features[2] = F;
+  }
+
   await browser.close(); srv.close();
   fs.writeFileSync(path.join(OUT, 'result.json'), JSON.stringify(R, null, 2));
   const ng = Object.entries(R.features).filter(([, f]) => !f.ok).map(([k]) => k);

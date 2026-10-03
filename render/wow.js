@@ -3,7 +3,8 @@
    描画（render/night-gl.js）と画面（app/night.js）から読む。天文の計算はここに持たない（engine/ の写しを呼ぶ）。
    ブラウザでも Node（テスト）でも読める。
      1 ジャイロ（端末の向き → 見る方位・高度。磁北 → 真北は WMM2025 の偏角）
-   （2〜8 は順に足す） */
+     2 街明かり（空の明るさ → 見える星の限界・天の川・空の色）
+   （3〜8 は順に足す） */
 (function (root) {
   const W = (typeof module !== 'undefined') ? require('./wmm.js') : root.NightWMM;
   const D = Math.PI / 180;
@@ -115,6 +116,27 @@
     return ((cur + d * k) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI);
   }
 
+  /* ---------- 2 街明かり ----------
+     つまみ u（0 = 田舎 … 1 = 都会）→ 空の明るさ（等級/平方秒角、V に近い値として扱う）→ 肉眼の限界等級。
+     限界等級の式は Schaefer (1990) PASP 102:212 を K. Fisher（Unihedron）がまとめたもの:
+       NELM = 7.93 − 5·log10(10^(4.316 − B/5) + 1)  （http://unihedron.com/projects/darksky/NELM2BCalc.html、2026-10-03 に確認）
+     天の川の見え方・空の色の付け方は、このサイトの近似（出典のある値ではない）。 */
+  const LIGHT = { dark: 21.9, city: 17.5, steps: 20 };
+  /** u → 空の明るさ（等級/平方秒角） */
+  const skyMag = (u) => LIGHT.dark + (LIGHT.city - LIGHT.dark) * Math.max(0, Math.min(1, u));
+  /** 空の明るさ → 肉眼の限界等級（Schaefer 1990） */
+  const nelm = (B) => 7.93 - 5 * Math.log10(Math.pow(10, 4.316 - B / 5) + 1);
+  const smooth = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+  /**
+   * 街明かりの効き方。limit: 限界等級、milky: 天の川の濃さ（0〜1）、glow: 空の明るさの増え方（0〜1。自然の空 21.9 からの比を対数で）
+   * label: 0 田舎・1 郊外・2 都会（表示用）
+   */
+  function lightPollution(u) {
+    const B = skyMag(u), lim = nelm(B);
+    const excess = Math.pow(10, -0.4 * (B - LIGHT.dark)) - 1, max = Math.pow(10, -0.4 * (LIGHT.city - LIGHT.dark)) - 1;
+    return { sky: B, limit: lim, milky: smooth(4.6, 6.2, lim), glow: Math.log10(1 + excess) / Math.log10(1 + max), label: u < 0.34 ? 0 : u < 0.67 ? 1 : 2 };
+  }
+
   /* ---------- 文字（新しい UI の文字列。英語は k132-wow2-en-review.md でオーナーの承認待ち） ---------- */
   const TEXT = {
     ja: {
@@ -124,6 +146,10 @@
       gyroDenied: ['向きのセンサーが使えないので、ドラッグのままです', 'むきの センサーが つかえないよ'],
       gyroCalib: ['方位がずれるときは、スマホを 8 の字に回してください', 'スマホを 8の じに まわしてね'],
       gyroRelative: ['北の向きが分からない端末なので、いまの向きを基準にします', 'いまの むきから うごかすよ'],
+      bLight: ['街明かり', 'まちの あかり'],
+      lightLabels: [['田舎', '郊外', '都会'], ['いなか', 'まちの そと', 'まち']],
+      lightRead: [(B, m) => `空の明るさ ${B.toFixed(1)} 等/平方秒角 · 見える星 ${m.toFixed(1)} 等まで`, (B, m) => `みえる ほしは ${m.toFixed(1)}とう まで`],
+      lightNote: ['限界等級は Schaefer (1990) の式。天の川と空の色は目安です', 'まちが あかるいと くらい ほしは みえないよ'],
     },
     en: {
       bGyro: 'Gyro',
@@ -132,9 +158,13 @@
       gyroDenied: 'The motion sensor is not available, so drag to look around',
       gyroCalib: 'If the direction is off, move your phone in a figure 8',
       gyroRelative: 'This device does not report north, so your current view is the starting direction',
+      bLight: 'City lights',
+      lightLabels: ['Countryside', 'Suburbs', 'City'],
+      lightRead: (B, m) => `Sky brightness ${B.toFixed(1)} mag/arcsec² · stars to magnitude ${m.toFixed(1)}`,
+      lightNote: 'Limiting magnitude from Schaefer (1990). The Milky Way and sky color are approximate.',
     },
   };
 
-  const api = { magnetic, decimalYear, declination, deviceView, compassOffset, GYRO, needCalibration, follow, TEXT };
+  const api = { magnetic, decimalYear, declination, deviceView, compassOffset, GYRO, needCalibration, follow, LIGHT, skyMag, nelm, lightPollution, TEXT };
   if (typeof module !== 'undefined') module.exports = api; else root.NightWow = api;
 })(typeof window !== 'undefined' ? window : globalThis);

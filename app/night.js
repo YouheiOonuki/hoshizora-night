@@ -270,7 +270,8 @@
     const M = moon(sim), mH = moonH(H, M), mAltD = Math.asin(mH[2]) / DEG;
     const dayF = L.dayFactor(sAltD), starF = L.starFactor(sAltD), moonF = L.moonLight(M.illum, mAltD, dayF);
     const pxDeg = r.pxPerDeg(st, cw, ch), scale = Math.sqrt(st.zoom);
-    const limit = Math.min(L.limitMag(Math.min(st.limit, L.STAR_LIMIT + 0.1), moonF, starF), -1.5 + (st.limit + 1.5) * ease);
+    const lp = WOW.lightPollution(lightU);   // 街明かり（企画書 75 の 2）
+    const limit = Math.min(L.limitMag(Math.min(st.limit, L.STAR_LIMIT + 0.1, lp.limit + 0.1), moonF, starF), -1.5 + (st.limit + 1.5) * ease);
 
     /* 星の画面の位置（星座線・名前・タップ用） */
     for (const s of picks) {
@@ -304,7 +305,7 @@
     }
     /* 星雲・銀河・星団（ぼんやりした光） */
     const glows = [];
-    const mwF = starF * (1 - 0.7 * moonF);
+    const mwF = starF * (1 - 0.7 * moonF) * lp.milky;
     for (const d of DSOS) {
       const h = S.apply(starM, d.v), p = h[2] > 0 ? proj(h) : null; d.p = p;
       if (p) glows.push({ mode: 0, x: p.x, y: p.y, size: d.r * pxDeg * 1.1, aspect: 0.42, rot: -d.tilt, color: [0.86, 0.87, 1.0], alpha: 0.5 * mwF * ease });
@@ -358,7 +359,7 @@
     r.draw({ starM, H, az: st.az, alt: st.alt, zoom: st.zoom, fovDeg: st.fovDeg, dpr: dprCap(), time: twinkleOn ? now / 1000 : 0, now, cssW: cw, cssH: ch,
       twinkle: twinkleOn ? 1 : 0, limit, twilight: L.twilightWeight(sim, place.lat, place.lon) * (1 - dayF), dusk: 1 - ease,
       milky: st.stage === 'full' ? mwF * ease : 0, milkyTex: st.stage === 'full', noise: true, hills: true,
-      sky: { sun: sunHz, day: dayF, glow: 1, moon: mH, moonK: moonF, ext: 1, dim: 1 - 0.3 * (1 - starF) },
+      sky: { sun: sunHz, day: dayF, glow: 1, moon: mH, moonK: moonF, ext: 1, dim: 1 - 0.3 * (1 - starF), city: lp.glow },
       glows, quads, sprites, moon: null, lineAlpha: 0, allLines: 0, meteor: met });
 
     /* 名前 */
@@ -629,13 +630,13 @@
   $('quiz').addEventListener('click', () => { if (quiz) stopQuiz(); else startQuiz(); });
   function setKids(on) {
     kids = on; X = I.ctx('ja', kids); document.body.classList.toggle('kids', kids); setPressed('kids', kids);
-    placeLabel(); reopenSheet(); if (quiz) nextQ(); shownKey = ''; dirty = true; setPlaying(playing); buildPlaces();
+    placeLabel(); reopenSheet(); if (quiz) nextQ(); shownKey = ''; dirty = true; setPlaying(playing); buildPlaces(); lightText();
   }
   if ($('kids')) $('kids').addEventListener('click', () => { setKids(!kids); toast(TT('kidsToast')); });
   $('red').addEventListener('click', () => { red = !red; document.body.classList.toggle('red', red); setPressed('red', red); if (red) toast(TT('redToast')); });
   if ($('moonBtn')) $('moonBtn').addEventListener('click', () => { closePanels(); openBody('moon', true); });
   // 時間たび
-  function closePanels() { for (const [p, b] of [['timePanel', 'timeBtn'], ['places', 'place']]) { $(p).hidden = true; if (b === 'place') $(b).setAttribute('aria-expanded', 'false'); else setPressed(b, false); } }
+  function closePanels() { for (const [p, b] of [['timePanel', 'timeBtn'], ['places', 'place'], ['lightPanel', 'lightBtn']]) { $(p).hidden = true; if (b === 'place') $(b).setAttribute('aria-expanded', 'false'); else setPressed(b, b === 'lightBtn' ? lightU > 0 : false); } }
   $('timeBtn').addEventListener('click', () => { const open = $('timePanel').hidden; closePanels(); if (open) { $('timePanel').hidden = false; setPressed('timeBtn', true); } });
   document.querySelectorAll('[data-close]').forEach((b) => b.addEventListener('click', closePanels));
   document.querySelectorAll('#timePanel [data-d]').forEach((b) => b.addEventListener('click', () => jumpTo(sim + Number(b.dataset.d) * 86400000)));
@@ -705,6 +706,18 @@
     startGyro();
   });
 
+  /* ---------------- 2 街明かり（企画書 75）: 田舎〜都会のつまみ。限界等級・天の川・空の明るさが連動 ---------------- */
+  let lightU = 0;
+  const lightSlider = $('lightSlider');
+  function lightText() {
+    const lp = WOW.lightPollution(lightU), f = wt('lightRead');
+    $('lightRead').textContent = f(lp.sky, Math.min(lp.limit, L.STAR_LIMIT));
+    setPressed('lightBtn', lightU > 0 || !$('lightPanel').hidden);
+    window.__night.light = { u: lightU, sky: lp.sky, limit: lp.limit, milky: lp.milky };
+  }
+  $('lightBtn').addEventListener('click', () => { const open = $('lightPanel').hidden; closePanels(); if (open) $('lightPanel').hidden = false; lightText(); });
+  lightSlider.addEventListener('input', () => { lightU = +lightSlider.value / WOW.LIGHT.steps; lightText(); dirty = true; });
+
   // 使い方
   $('helpBtn').addEventListener('click', () => { $('help').hidden = false; });
   $('helpStart').addEventListener('click', () => { $('help').hidden = true; canvas.focus({ preventScroll: true }); });
@@ -752,7 +765,7 @@
 
   window.__night = { stage: 'full', fps: [], playing, picked: null, get place() { return place.id; }, sheet: null, toast: null, get sim() { return sim; }, get limit() { return st.limit; },
     allLines: showLines, intro: () => introStart == null, meteor: () => !!meteor, forceMeteor: (dur) => { nextMeteor = 0; forcedDur = dur || 0; },
-    gyro: null, reduce: reduce.matches, select: (x, y) => handleTap(x, y), view: st, flying: () => !!fly, textures: () => r.textures(),
+    gyro: null, light: null, setLight: (u) => { lightSlider.value = String(Math.round(u * WOW.LIGHT.steps)); lightSlider.dispatchEvent(new Event('input')); }, reduce: reduce.matches, select: (x, y) => handleTap(x, y), view: st, flying: () => !!fly, textures: () => r.textures(),
     loading: () => { const t = r.textures(); return params.get('tex') !== 'off' && (!t.milky || !t.moon || performance.now() < texSettle); },
     where: (name) => {   // 確かめ用: 名前の付いた星・惑星・月の画面上の位置（CSS px）。見えなければ null
       const bp = lastFrameState && lastFrameState.bodyPos[name]; if (bp) return bp.x == null ? null : { x: bp.x, y: bp.y };
@@ -817,6 +830,7 @@
 
   setPlaying(playing);
   placeLabel();
+  lightText();
   addEventListener('resize', () => { dirty = true; });
   requestAnimationFrame((t) => {
     lastReal = t; if (introStart === -1) introStart = t; nextMeteor = t + (4 + Math.random() * 8) * 1000;

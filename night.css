@@ -88,6 +88,8 @@ body.kids .labels .con { font-size: 15px; }
 .locform { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; margin-top: 12px; }
 .locform label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--dim); flex: 1 1 140px; }
 .locform input { font: inherit; font-size: 16px; color: var(--ink); background: rgba(255, 255, 255, .06); border: 1px solid var(--line); border-radius: 8px; padding: 8px; }
+#lightSlider { width: 100%; accent-color: #f0c86e; height: 32px; margin: 4px 0 0; }   /* 街明かり（企画書 75 の 2） */
+.lightscale { display: flex; justify-content: space-between; font-size: 12px; color: var(--dim); margin-bottom: 8px; }
 .note { margin: 12px 0 0; font-size: 12px; color: var(--dim); }
 .links { margin: 14px 0 0; font-size: 12px; line-height: 1.9; color: var(--dim); }
 .sheet { padding-top: 18px; }

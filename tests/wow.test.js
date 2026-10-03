@@ -71,11 +71,32 @@ test('1 画面: iPhone は押したときに許可を求め、拒否・非対応
   for (const p of ['index.html', 'en/index.html']) assert.ok(read(p).includes('id="gyro"') && read(p).includes('render/wow.js') && read(p).includes('render/wmm.js'), p);
 });
 
+/* ---------- 2 街明かり ---------- */
+test('2 街明かり: 空の明るさ → 限界等級は Schaefer (1990) の式。田舎は今までと同じ 6.5 等まで、都会ほど暗い星と天の川が消える', () => {
+  // 式の検算（Unihedron の換算表の式: NELM = 7.93 − 5·log10(10^(4.316 − B/5) + 1)）
+  assert.ok(Math.abs(W.nelm(21.9) - 6.579) < 0.001 && Math.abs(W.nelm(18.0) - 3.968) < 0.001, `${W.nelm(21.9)} ${W.nelm(18.0)}`);
+  const dark = W.lightPollution(0), city = W.lightPollution(1);
+  assert.ok(dark.limit >= 6.5, '田舎（つまみの左端）は追加の星表の 6.5 等まで全部（今までと同じ見え方）');
+  assert.strictEqual(dark.milky, 1); assert.strictEqual(dark.glow, 0);
+  assert.ok(city.limit < 4 && city.milky === 0 && city.glow === 1);
+  // 明るくするほど、限界等級・天の川は下がり、空の光は増える（逆転しない）
+  for (let i = 0; i < W.LIGHT.steps; i++) {
+    const a = W.lightPollution(i / W.LIGHT.steps), b = W.lightPollution((i + 1) / W.LIGHT.steps);
+    assert.ok(b.limit < a.limit && b.milky <= a.milky && b.glow > a.glow, String(i));
+  }
+  // 画面: 限界等級に効かせ、天の川の濃さ・空の色にも
+  const app = read('app/night.js'), gl = read('render/night-gl.js');
+  assert.ok(app.includes('lp.limit + 0.1') && app.includes('* lp.milky') && app.includes('city: lp.glow'));
+  assert.ok(gl.includes('uniform float uCity') && gl.includes('if (uCity > 0.0)'));
+  for (const p of ['index.html', 'en/index.html']) assert.ok(read(p).includes('id="lightSlider"') && read(p).includes('id="lightPanel"'), p);
+});
+
 /* ---------- 共通 ---------- */
 test('文字: 日英で項目が揃い、英語はすべて k132-wow2-en-review.md の承認待ちの文（新しく書いた英語はここだけ）', () => {
   assert.deepStrictEqual(Object.keys(W.TEXT.en).sort(), Object.keys(W.TEXT.ja).sort());
   for (const [k, v] of Object.entries(W.TEXT.ja)) assert.ok(Array.isArray(v) && v.length === 2, `${k} は [おとな, ひらがな]`);
-  for (const [k, v] of Object.entries(W.TEXT.en)) assert.ok(typeof v === 'string' && /[A-Za-z]/.test(v), k);
+  const ok = (v) => (typeof v === 'string' && /[A-Za-z]/.test(v)) || (typeof v === 'function' && /[A-Za-z]/.test(v(1, 2, 3))) || (Array.isArray(v) && v.every(ok));
+  for (const [k, v] of Object.entries(W.TEXT.en)) assert.ok(ok(v), k);
 });
 
 test('保存しない・音なし・外向きの要求なし（render/wow.js）', () => {

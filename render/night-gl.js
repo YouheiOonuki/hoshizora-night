@@ -38,7 +38,7 @@ precision highp float;
 uniform mat3 uViewT; uniform mat3 uStarT; uniform mat3 uGal; uniform vec2 uScale; uniform vec3 uZen; uniform vec3 uHor; uniform vec3 uGround;
 uniform vec4 uMW[${MWN}]; uniform float uMWd[${MWN}]; uniform int uMWn; uniform float uMWk; uniform float uNoise; uniform float uHills;
 uniform sampler2D uTex; uniform float uTexK;
-uniform vec3 uSun; uniform float uDay; uniform float uGlow; uniform vec3 uMoon; uniform float uMoonK;
+uniform vec3 uSun; uniform float uDay; uniform float uGlow; uniform vec3 uMoon; uniform float uMoonK; uniform float uCity;
 varying vec2 vXY;
 ${HILLS}
 float hash(vec3 p){ p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
@@ -67,7 +67,7 @@ void main(){
   vec3 sunH = normalize(uSun); float sunAlt = asin(clamp(sunH.z, -1.0, 1.0)) * 57.29578;
   if (h.z < 0.0 || (uHills > 0.5 && behindHills(h))) {
     // 地面: 夜は黒に近く、昼と月明かりで少し明るい。下ほど暗い
-    vec3 g = mix(uGround, vec3(0.16, 0.20, 0.19), uDay) + vec3(0.010, 0.013, 0.020) * uMoonK;
+    vec3 g = mix(uGround, vec3(0.16, 0.20, 0.19), uDay) + vec3(0.010, 0.013, 0.020) * uMoonK + vec3(0.030, 0.022, 0.016) * uCity * (1.0 - uDay);
     g *= 0.75 + 0.25 * smoothstep(-0.5, 0.0, h.z);
     gl_FragColor = vec4(g + dith, 1.0); return;
   }
@@ -91,6 +91,8 @@ void main(){
   }
   // 地平線のかすみ（夜）
   col += vec3(0.030, 0.040, 0.070) * exp(-h.z * 14.0) * (1.0 - uDay);
+  // 街明かり（企画書 75 の 2）: 空全体が明るく、地平線ほど橙がかった光（夜だけ）
+  if (uCity > 0.0) col += uCity * (1.0 - uDay) * (vec3(0.060, 0.058, 0.066) + vec3(0.34, 0.22, 0.13) * exp(-h.z * 3.2) + vec3(0.10, 0.07, 0.05) * exp(-h.z * 12.0));
   // 天の川（画像、または中心線から）。地平線に近いほど大気で薄く
   if (uMWk > 0.001) {
     vec3 v = uStarT * h;                             // J2000 の向き
@@ -280,7 +282,7 @@ void main(){
     const gl = canvas.getContext('webgl', { antialias: true, alpha: false, preserveDrawingBuffer: !!opts.preserve });
     if (!gl) throw new Error('webgl');
     const bg = program(gl, BG_VS, BG_FS, ['uViewT', 'uStarT', 'uGal', 'uScale', 'uZen', 'uHor', 'uGround', 'uMW', 'uMWd', 'uMWn', 'uMWk', 'uNoise', 'uHills',
-      'uTex', 'uTexK', 'uSun', 'uDay', 'uGlow', 'uMoon', 'uMoonK']);
+      'uTex', 'uTexK', 'uSun', 'uDay', 'uGlow', 'uMoon', 'uMoonK', 'uCity']);
     const pt = program(gl, PT_VS, PT_FS, ['uHz', 'uView', 'uScale', 'uHills', 'uDpr', 'uTime', 'uTwinkle', 'uLimit', 'uDim', 'uZoom', 'uExt', 'uMaxPt']);
     const ln = program(gl, LN_VS, LN_FS, ['uHz', 'uView', 'uScale', 'uHills', 'uColor', 'uOff']);
     const ql = program(gl, QL_VS, QL_FS, ['uColor', 'uCore', 'uDash']);
@@ -444,7 +446,7 @@ void main(){
       gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, tex.milky || blank); gl.uniform1i(bg.U.uTex, 0);
       gl.uniform1f(bg.U.uTexK, st.milkyTex === false ? 0 : texK('milky', now));
       gl.uniform3fv(bg.U.uSun, sky.sun || [0, 0, -1]); gl.uniform1f(bg.U.uDay, sky.day || 0); gl.uniform1f(bg.U.uGlow, sky.glow || 0);
-      gl.uniform3fv(bg.U.uMoon, sky.moon || [0, 0, -1]); gl.uniform1f(bg.U.uMoonK, sky.moonK || 0);
+      gl.uniform3fv(bg.U.uMoon, sky.moon || [0, 0, -1]); gl.uniform1f(bg.U.uMoonK, sky.moonK || 0); gl.uniform1f(bg.U.uCity, sky.city || 0);
       gl.drawArrays(gl.TRIANGLES, 0, 3);
       // 星雲・銀河（星の後ろ）
       gl.enable(gl.BLEND);
