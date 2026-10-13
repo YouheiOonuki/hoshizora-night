@@ -83,6 +83,7 @@ export function page(lang, month) {
 <!-- Google AdSense: フル版は広告なし（ROADMAP 7.15 の要件 2・7.15.1 の 10）。サイト所有確認の meta だけ（D118） -->
 <meta name="google-adsense-account" content="ca-pub-5375267956079717">
 <link rel="icon" href="/hoshizora-night/favicon.svg" type="image/svg+xml">
+<link rel="manifest" href="/manifest.webmanifest">
 <link rel="apple-touch-icon" href="/hoshizora-night/apple-touch-icon.png">
 <link rel="stylesheet" href="/hoshizora-night/night.css">
 <script type="application/ld+json">${JSON.stringify(ld)}</script>
@@ -234,6 +235,7 @@ export function posterPage() {
 <!-- Google AdSense: ポスターも広告なし（K132 と同じ。企画書 72）。サイト所有確認の meta だけ（D118） -->
 <meta name="google-adsense-account" content="ca-pub-5375267956079717">
 <link rel="icon" href="/hoshizora-night/favicon.svg" type="image/svg+xml">
+<link rel="manifest" href="/manifest.webmanifest">
 <link rel="apple-touch-icon" href="/hoshizora-night/apple-touch-icon.png">
 <link rel="stylesheet" href="/hoshizora-night/poster/poster.css">
 <script type="application/ld+json">${JSON.stringify(ld)}</script>
@@ -242,7 +244,7 @@ export function posterPage() {
 <div id="bar" class="topbar" hidden><span>星空ポスター</span><button id="barPdf" type="button">PDF をダウンロード</button></div>
 <main>
 <h1>生まれた日の星空ポスター</h1>
-<p class="lead">日付・時刻・場所の星空を、印刷用の PDF と PNG にします。入力した文字は端末の外に出ません。</p>
+<p class="lead">入力した文字は端末の外に出ません。</p>
 <p id="nogl" class="nogl" hidden>この端末では作れません（WebGL が使えません）。<a href="/hoshizora-sanpo/">星空さんぽ</a>で星空を見られます。</p>
 <form id="form" onsubmit="return false">
 <fieldset class="box">
