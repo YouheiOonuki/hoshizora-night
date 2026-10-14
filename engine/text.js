@@ -1,4 +1,4 @@
-/* 生成物・手で編集しない: YouheiOonuki/hoshizora-sanpo@ec63e4add9587ddcd7b832db16b0cde62d57fcb9 の text.js を tools/sync-from-sanpo.mjs で写した（確認日 2026-10-03、元の sha256 7ee8f8bef39b3f50a143dd3aa5c827f91193ad641f67eee218a0b79197a60e9e） */
+/* 生成物・手で編集しない: YouheiOonuki/hoshizora-sanpo@76c59616be72931be0d94e312a06354cdfeb20cb の text.js を tools/sync-from-sanpo.mjs で写した（確認日 2026-10-14、元の sha256 af66020736e8ce0bccdb4ee59f1021c933860d9a7a9ae0b1348082b4117c771a） */
 'use strict';
 /* =================================================================
    ほしぞらさんぽ — 画面の文言（main.js が使う）
@@ -44,7 +44,7 @@ const TEXT = {
     movedToast:name=>`${name}の空に移動しました`,
     noGeo:'この端末では位置情報が使えません', geoFail:'位置情報を取得できませんでした。端末の設定で許可してください',
     geoOk:'いまいる場所の空にしました', here:'いまいる場所',
-    dayJump:'いまは昼間なので、今夜21時の空にワープしました🌙（「時間たび」→「いまに戻る」で現在へ）',
+    dayJump:'今夜21時の空です🌙',
     linkedToast:(p,place)=>`${+p.month}月${+p.day}日 ${+p.hour}時${p.minute==='00'?'':p.minute+'分'}の${place}の空です（「時間たび」→「いまに戻る」で現在へ）`,
     focusToast:(c,p,place)=>`${c.jp}がよく見える ${+p.month}月${+p.day}日 21時の${place}の空です`,
   },
@@ -83,7 +83,7 @@ const TEXT = {
     movedToast:name=>`${name}の そらに いどう したよ`,
     noGeo:'いる ばしょが わからなかったよ', geoFail:'いる ばしょが わからなかったよ',
     geoOk:'いま いる ばしょの そらに したよ', here:'いま いる ばしょ',
-    dayJump:'いまは ひるま なので、こんやの 9じの そらに ワープしたよ🌙',
+    dayJump:'こんやの 9じの そらだよ🌙',
     linkedToast:p=>`${+p.month}がつ${+p.day}にち ${+p.hour}じの そらだよ`,
     focusToast:(c,p)=>`${c.kana}ざが よく みえる ${+p.month}がつ${+p.day}にち よる9じの そらだよ`,
   },
@@ -126,7 +126,7 @@ const TEXT = {
     noGeo:'Location is not available on this device.', geoFail:'Couldn’t get your location. Allow location access in your device settings.',
     geoOk:'Now showing the sky from your location', here:'Your location', custom:'Custom place',
     badCoords:'Enter a latitude from −90 to 90 and a longitude from −180 to 180.',
-    dayJump:'It’s daytime, so here is the sky at 9 p.m. tonight 🌙 (Time → Back to now returns to the present)',
+    dayJump:'The sky at 9 p.m. tonight 🌙',
     linkedToast:(p,place)=>`The sky over ${place} on ${MONTHS_EN[+p.month-1]} ${+p.day} at ${clock12(p)} (Time → Back to now returns to the present)`,
     focusToast:(c,p,place)=>`${c.en} is well placed at 9 p.m. on ${MONTHS_EN[+p.month-1]} ${+p.day} from ${place}`,
   },
