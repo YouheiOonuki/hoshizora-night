@@ -5,7 +5,7 @@
 //   node tools/sync-from-sanpo.mjs --check    写しが SOURCE.json の版の元と 1 バイトも違わないかを確かめる（違えば終了コード 1）
 //                                             あわせて、通常版の main が先に進んでいれば知らせる（失敗にはしない）
 //
-// 写し元: 環境変数 SANPO_DIR にクローンがあれば `git show <sha>:<file>`、無ければ GitHub から取る。
+// 写し元: 環境変数 SANPO_DIR にクローンがあれば、その main（正本。D349）から `git show <sha>:<file>`、無ければ GitHub から取る。
 // 写しの先頭 1 行だけが生成の印（写し元のコミット・確認日・元の sha256）。2 行目以降は元と同じ。
 // 依存パッケージなし（Node 20 以上）
 import fs from 'node:fs';
@@ -45,11 +45,9 @@ function sanpoDir() {
 async function resolveRef(ref) {
   const dir = sanpoDir();
   if (dir) {
-    // GitHub に届けば origin/main、届かなければ手元の main（origin/main は届かなくなった日のまま古い。2026-10 の GitHub 停止中に 2d04768 を写しかけた。
-    // yorozu-plans の tools/deploy/sync.ps1 も届かないときは作業用クローンの main から配信する）
-    let online = true;
-    try { execFileSync('git', ['-C', dir, 'fetch', '-q', 'origin'], { stdio: 'ignore' }); } catch { online = false; }
-    return execFileSync('git', ['-C', dir, 'rev-parse', ref === 'main' ? (online ? 'origin/main' : 'main') : ref]).toString().trim();
+    // 手元の main を写す（正本は PC の作業用クローン、GitHub は backup.ps1 が押す複製で、追いつくまで古い。D349。
+    // 2026-10 の GitHub 停止中に origin/main の 2d04768 を写しかけた。yorozu-plans の tools/deploy/sync.ps1 も PC の main から配信する）
+    return execFileSync('git', ['-C', dir, 'rev-parse', ref]).toString().trim();
   }
   const r = await fetch(`https://api.github.com/repos/${REPO}/commits/${ref}`, { headers: { accept: 'application/vnd.github+json' } });
   if (!r.ok) throw new Error(`GitHub API ${r.status}`);
