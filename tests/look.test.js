@@ -95,10 +95,18 @@ test('5 文字（企画書 74 で 20 語の上限を外した）: 日英で項�
   // 軽量版の英語の画面（hoshizora-sanpo の en/index.html。tools/sync-from-sanpo.mjs が tests/fixtures/ に写す）にある文字列をそのまま使う。
   // それ以外は企画書 74 より前からフル版にあった英語（K132 の 20 語）だけ。新しく書いた英語は出典の 2 行（CREDITS）だけで、全文は k132-parity-en-review.md
   const BEFORE = ['Now', 'Pause', 'Play', 'Share', '✓', 'Here', 'Light version', 'Location unavailable', 'N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW', 'Near'];
+  // 使い方パネル（help）の英語。軽量版は段 2 の 2（sanpo f3c589c）で英語の操作説明の幕を消したが、フル版のパネルは残す。
+  // 「night の既存の英語」として BEFORE と同じ扱いで名指しし、文は変えない（ROADMAP 7.21 2026-10-14 の (a)。パネルをどうするかは段 3 で）
+  const HELP_BEFORE = ['Drag', 'Look around (swipe on a phone)', 'Pinch / wheel', 'Zoom in and out', 'Tap', 'Open notes on a constellation, star, the Moon or a planet', 'Move time and watch the stars, Sun and Moon move', 'Pick a city or type a latitude and longitude', 'Keeps your eyes used to the dark outdoors', 'Start'];
   const flat = (v) => (v && typeof v === 'object') ? Object.values(v).flatMap(flat) : [v];
   const SANPO_EN = require('node:fs').readFileSync(require('node:path').join(__dirname, 'fixtures', 'sanpo-en-strings.txt'), 'utf8').split('\n');
-  const fromSanpo = flat(L.TEXT.en).filter((s) => !BEFORE.includes(s));
+  const EN = flat(L.TEXT.en);
+  const fromSanpo = EN.filter((s) => !BEFORE.includes(s) && !HELP_BEFORE.includes(s));
   for (const s of BEFORE) assert.ok(!SANPO_EN.includes(s), `${s} は軽量版にあるので BEFORE から外す`);
+  for (const s of HELP_BEFORE) {
+    assert.ok(!SANPO_EN.includes(s), `${s} は軽量版にあるので HELP_BEFORE から外す`);
+    assert.ok(EN.includes(s), `${s} はもう使っていないので HELP_BEFORE から外す`);
+  }
   for (const s of fromSanpo) assert.ok(SANPO_EN.includes(s), `軽量版の英語の画面に無い: ${s}`);
 });
 

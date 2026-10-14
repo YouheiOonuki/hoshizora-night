@@ -45,8 +45,11 @@ function sanpoDir() {
 async function resolveRef(ref) {
   const dir = sanpoDir();
   if (dir) {
-    try { execFileSync('git', ['-C', dir, 'fetch', '-q', 'origin'], { stdio: 'ignore' }); } catch { /* オフラインなら手元のまま */ }
-    return execFileSync('git', ['-C', dir, 'rev-parse', ref === 'main' ? 'origin/main' : ref]).toString().trim();
+    // GitHub に届けば origin/main、届かなければ手元の main（origin/main は届かなくなった日のまま古い。2026-10 の GitHub 停止中に 2d04768 を写しかけた。
+    // yorozu-plans の tools/deploy/sync.ps1 も届かないときは作業用クローンの main から配信する）
+    let online = true;
+    try { execFileSync('git', ['-C', dir, 'fetch', '-q', 'origin'], { stdio: 'ignore' }); } catch { online = false; }
+    return execFileSync('git', ['-C', dir, 'rev-parse', ref === 'main' ? (online ? 'origin/main' : 'main') : ref]).toString().trim();
   }
   const r = await fetch(`https://api.github.com/repos/${REPO}/commits/${ref}`, { headers: { accept: 'application/vnd.github+json' } });
   if (!r.ok) throw new Error(`GitHub API ${r.status}`);
