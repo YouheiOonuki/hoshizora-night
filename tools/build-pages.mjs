@@ -56,7 +56,7 @@ export function page(lang, month) {
     offers: { '@type': 'Offer', price: '0', priceCurrency: 'JPY' }, description: M.desc,
   };
   return `<!DOCTYPE html>
-<html lang="${lang}">
+<html lang="${lang}" data-skin="base">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
@@ -211,7 +211,7 @@ export function posterPage() {
     operatingSystem: 'Any', inLanguage: 'ja', offers: { '@type': 'Offer', price: '0', priceCurrency: 'JPY' }, description: POSTER.desc };
   const opt = (v, t, sel) => `<option value="${v}"${sel ? ' selected' : ''}>${t}</option>`;
   return `<!DOCTYPE html>
-<html lang="ja">
+<html lang="ja" data-skin="base">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
