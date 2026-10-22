@@ -94,6 +94,7 @@ export function page(lang, month) {
 <div id="scopeMask" class="scopemask" aria-hidden="true" hidden></div>
 <div id="dirs" class="dirs" aria-hidden="true">${T.dirs.map((d, i) => `<span class="${i % 2 ? 'sub' : 'main'}">${d}</span>`).join('')}</div>
 <header class="hud">
+  <h1 class="visually-hidden">${en ? 'Web Planetarium' : esc(M.title.replace(/\s*｜\s*yorozu-craft$/, ''))}</h1>
   <p class="clock"><span id="date"></span><span id="time"></span></p>
   <button id="place" type="button" class="chip" aria-expanded="false" aria-controls="places"></button>
   <span id="placeSub" class="placesub" hidden></span>
