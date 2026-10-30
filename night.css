@@ -105,7 +105,7 @@ body:not(.kids) .kd, body.kids .ad { display: none !important; }
 .chip { pointer-events: auto; border: 1px solid var(--line); background: var(--glass); border-radius: 999px; padding: 6px 12px; font-size: 13px; cursor: pointer;
   -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
 .corner { position: fixed; right: max(16px, env(safe-area-inset-right)); top: max(12px, env(safe-area-inset-top)); z-index: 3; }
-.round { width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--line); background: var(--glass); color: var(--ink); font-size: 16px; cursor: pointer; }
+.round { width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--line); background: var(--glass); color: var(--ink); font-size: 16px; cursor: pointer; }
 .tonight { position: fixed; right: max(16px, env(safe-area-inset-right)); top: calc(max(12px, env(safe-area-inset-top)) + 48px); margin: 0; padding: 0; list-style: none;
   max-width: min(46vw, 260px); text-align: right; font-size: 12px; line-height: 1.5; color: var(--dim); pointer-events: none; text-shadow: 0 1px 4px #000c; z-index: 2; }
 .tonight li::before { content: "✦ "; color: #c9d6ff; opacity: .7; }
@@ -131,8 +131,8 @@ body.kids .labels .con { font-size: 15px; }
 .bottom { position: fixed; left: 0; right: 0; bottom: 0; padding: 10px max(16px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
   display: flex; flex-direction: column; gap: 8px; background: linear-gradient(transparent, rgba(3, 5, 14, .78) 40%); z-index: 3; }
 .bottom .row { display: flex; align-items: center; gap: 8px; }
-#slider { flex: 1; min-width: 0; margin: 0; accent-color: #8fb0ff; height: 28px; background: transparent; }
-.bottom .row button, .dock button, .dock a { border: 1px solid var(--line); background: var(--glass); border-radius: 999px; min-height: 40px; padding: 0 14px; font-size: 14px; cursor: pointer;
+#slider { flex: 1; min-width: 0; margin: 0; accent-color: #8fb0ff; height: 44px; background: transparent; }
+.bottom .row button, .dock button, .dock a { border: 1px solid var(--line); background: var(--glass); border-radius: 999px; min-height: 44px; padding: 0 14px; font-size: 14px; cursor: pointer;
   display: inline-flex; align-items: center; color: var(--ink); text-decoration: none; white-space: nowrap; flex: 0 0 auto; }
 .dock { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; margin: 0 -4px; padding: 0 4px;
   mask-image: linear-gradient(90deg, #000 90%, transparent); -webkit-mask-image: linear-gradient(90deg, #000 90%, transparent); }
@@ -151,7 +151,7 @@ body.kids .labels .con { font-size: 15px; }
   -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); box-shadow: 0 -10px 40px rgba(0, 0, 0, .45); }
 .panel h2 { margin: 0; font: 600 15px var(--serif); color: var(--gold); letter-spacing: .08em; }
 .panel-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 10px; }
-.panel button, .sheet button, .help button { border: 1px solid var(--line); background: transparent; color: var(--ink); border-radius: 999px; min-height: 40px; padding: 0 14px; font-size: 14px; cursor: pointer; }
+.panel button, .sheet button, .help button { border: 1px solid var(--line); background: transparent; color: var(--ink); border-radius: 999px; min-height: 44px; padding: 0 14px; font-size: 14px; cursor: pointer; }
 .panel .gold, .help .gold { border-color: rgba(240, 200, 110, .7); color: var(--gold); }
 .panel .wide { width: 100%; margin-bottom: 10px; }
 .close { font-size: 20px; line-height: 1; }
