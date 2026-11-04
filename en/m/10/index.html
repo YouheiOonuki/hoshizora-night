@@ -32,6 +32,7 @@
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebApplication","name":"Night Sky Tonight, Full Version","url":"https://yorozu-craft.com/hoshizora-night/en/","applicationCategory":"EducationalApplication","operatingSystem":"Any","inLanguage":"en","offers":{"@type":"Offer","price":"0","priceCurrency":"JPY"},"description":"Tonight’s sky for your place, drawn large: a deep blue sky, softly glowing stars and the slow turn of the night. Same calculations as the light version. No ads, no sign-up."}</script>
 </head>
 <body class="app">
+<main>
 <canvas id="sky" tabindex="0" aria-label="Night sky. Drag to look around, pinch to zoom, tap a constellation for notes. Arrow keys also work."></canvas>
 <div id="labels" class="labels" aria-hidden="true"></div>
 <div id="scopeMask" class="scopemask" aria-hidden="true" hidden></div>
@@ -119,6 +120,7 @@
 <div id="redFilter" class="redfilter"></div>
 <p id="slow" class="slow" hidden><a href="/hoshizora-sanpo/en/">Light version</a></p>
 <p id="nogl" class="nogl" hidden><a href="/hoshizora-sanpo/en/">Light version</a></p>
+</main>
 <script src="/hoshizora-night/render/gate.js"></script>
 <script src="/hoshizora-night/engine/astro.js"></script>
 <script src="/hoshizora-night/engine/catalog.js"></script>
