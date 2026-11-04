@@ -50,8 +50,10 @@ export function page(lang, month) {
   const og = month ? OG.months[month - 1] : OG.months[OG.entryMonth - 1];
   const title = month ? M.monthTitle(month) : M.title;
   const light = en ? '/hoshizora-sanpo/en/' : '/hoshizora-sanpo/';
+  // h1 の文。JSON-LD の name も同じ文（yorozu-plans ROADMAP 7.181・Q-074）
+  const h1 = en ? 'Web Planetarium' : M.title.replace(/\s*｜\s*yorozu-craft$/, '');
   const ld = {
-    '@context': 'https://schema.org', '@type': 'WebApplication', name: en ? 'Night Sky Tonight, Full Version' : 'ほしぞらさんぽ フル版',
+    '@context': 'https://schema.org', '@type': 'WebApplication', name: h1,
     url: canonical, applicationCategory: 'EducationalApplication', operatingSystem: 'Any', inLanguage: lang,
     offers: { '@type': 'Offer', price: '0', priceCurrency: 'JPY' }, description: M.desc,
   };
@@ -94,7 +96,7 @@ export function page(lang, month) {
 <div id="scopeMask" class="scopemask" aria-hidden="true" hidden></div>
 <div id="dirs" class="dirs" aria-hidden="true">${T.dirs.map((d, i) => `<span class="${i % 2 ? 'sub' : 'main'}">${d}</span>`).join('')}</div>
 <header class="hud">
-  <h1 class="visually-hidden">${en ? 'Web Planetarium' : esc(M.title.replace(/\s*｜\s*yorozu-craft$/, ''))}</h1>
+  <h1 class="visually-hidden">${esc(h1)}</h1>
   <p class="clock"><span id="date"></span><span id="time"></span></p>
   <button id="place" type="button" class="chip" aria-expanded="false" aria-controls="places"></button>
   <span id="placeSub" class="placesub" hidden></span>
