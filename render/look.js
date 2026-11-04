@@ -245,7 +245,9 @@
         ['時間たび', '時間を動かすと、星と太陽・月が動きます'], ['場所', 'シドニーに行くと南十字星が見えます'], ['赤いライト', '夜の屋外で目が暗さに慣れたまま使えます']],
       helpKana: [['ゆびで なぞる', 'そらを みまわす'], ['2ほんゆび', 'おおきく したり ちいさく したり'], ['タップ', 'せいざや つき の おはなしが ひらくよ'],
         ['じかんたび', 'じかんを うごかすと、ほしと たいようが うごく！'], ['ばしょ', 'シドニーに いくと みなみじゅうじせいが みえる']],
-      links: { zukan: '星座図鑑', calendar: '天文カレンダー', tsuki: '月の出・月の入り', shinwa: 'ギリシャ神話', hayamiban: '星座早見盤を作る', poster: '星空ポスター' } },
+      links: { zukan: '星座図鑑', calendar: '天文カレンダー', tsuki: '月の出・月の入り', shinwa: 'ギリシャ神話', hayamiban: '星座早見盤を作る', poster: '星空ポスター' },
+      // 「日本語版が正」の 1 文（IMPLEMENTER 6 章 (3)）。画面に出すのは英語のページだけ（[前, リンクの文字, 後]）。日本語は英語の文の元の意味
+      translationNote: ['この英語のページは', '日本語のページ', 'の翻訳です。違いがあれば日本語版に従います。'] },
     en: { now: 'Now', pause: 'Pause', play: 'Play', share: 'Share', copied: '✓', here: 'Here', light: 'Light version',
       time: 'Time', close: 'Close', about: 'About', privacy: 'Privacy policy', guide: 'How it works', geoFail: 'Location unavailable',
       dirs: ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'], near: 'Near', lines: 'Lines',
@@ -257,7 +259,8 @@
       helpLabel: 'How to use', helpStart: 'Start', sheetLabel: 'Details', timePanel: 'Time travel', placePanel: 'Place', menu: 'Menu',
       help: [['Drag', 'Look around (swipe on a phone)'], ['Pinch / wheel', 'Zoom in and out'], ['Tap', 'Open notes on a constellation, star, the Moon or a planet'],
         ['Time', 'Move time and watch the stars, Sun and Moon move'], ['Place', 'Pick a city or type a latitude and longitude'], ['Red light', 'Keeps your eyes used to the dark outdoors']],
-      links: { calendar: 'Sky calendar', planisphere: 'Printable planisphere' } },
+      links: { calendar: 'Sky calendar', planisphere: 'Printable planisphere' },
+      translationNote: ['This is an English translation of the', 'Japanese page', '. If the two differ, the Japanese version prevails.'] },
   };
   const L_TEXT = TEXT;
   /** 英語の語数（空白で区切り、英字を含むものを数える。方位の 1 文字も 1 語。記号の ✓ は数えない） */

@@ -1,4 +1,4 @@
-/* 生成物・手で編集しない: YouheiOonuki/hoshizora-sanpo@6a01f7a63e233fc1fbffe1c182a97cbdb16abb58 の tools/official-events.js を tools/sync-from-sanpo.mjs で写した（確認日 2026-10-15、元の sha256 98694d04fa0d2ef9137c1933fd99f80c92f6771f428b7284beefbfbc0d5e6c8f） */
+/* 生成物・手で編集しない: YouheiOonuki/hoshizora-sanpo@30071bbc3483822a28f9846d383678666b37d3f7 の tools/official-events.js を tools/sync-from-sanpo.mjs で写した（確認日 2026-11-04、元の sha256 98694d04fa0d2ef9137c1933fd99f80c92f6771f428b7284beefbfbc0d5e6c8f） */
 'use strict';
 /* 天文カレンダーの「公的機関の発表」データ（手で入れる。推測で埋めない）
  *

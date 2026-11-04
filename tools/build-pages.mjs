@@ -170,7 +170,8 @@ export function page(lang, month) {
     <button id="helpStart" type="button" class="gold">${lbl(T.helpStart)}</button>
     <p class="links">${en
       ? `<a href="/hoshizora-sanpo/en/calendar/">${T.links.calendar}</a> · <a href="/hoshizora-sanpo/en/planisphere/">${T.links.planisphere}</a> · <a href="/hoshizora-sanpo/en/guide.html">${T.guide}</a> · <a href="/en/about.html">${T.about}</a> · <a href="/en/privacy-policy.html">${T.privacy}</a> · <a href="/hoshizora-night/" hreflang="ja" lang="ja">日本語</a>`
-      : `<a href="/hoshizora-sanpo/zukan/">${T.links.zukan}</a> · <a href="/hoshizora-sanpo/calendar/">${T.links.calendar}</a> · <a href="/hoshizora-sanpo/tsuki/">${T.links.tsuki}</a> · <a href="/hoshizora-sanpo/shinwa/">${T.links.shinwa}</a> · <a href="/hoshizora-sanpo/hayamiban/">${T.links.hayamiban}</a> · <a href="/hoshizora-night/poster/">${T.links.poster}</a> · <a href="/hoshizora-sanpo/about.html">${T.guide}</a> · <a href="/about.html">${T.about}</a> · <a href="/privacy-policy.html">${T.privacy}</a> · <a href="/hoshizora-night/en/" hreflang="en" lang="en">English</a>`}</p>
+      : `<a href="/hoshizora-sanpo/zukan/">${T.links.zukan}</a> · <a href="/hoshizora-sanpo/calendar/">${T.links.calendar}</a> · <a href="/hoshizora-sanpo/tsuki/">${T.links.tsuki}</a> · <a href="/hoshizora-sanpo/shinwa/">${T.links.shinwa}</a> · <a href="/hoshizora-sanpo/hayamiban/">${T.links.hayamiban}</a> · <a href="/hoshizora-night/poster/">${T.links.poster}</a> · <a href="/hoshizora-sanpo/about.html">${T.guide}</a> · <a href="/about.html">${T.about}</a> · <a href="/privacy-policy.html">${T.privacy}</a> · <a href="/hoshizora-night/en/" hreflang="en" lang="en">English</a>`}</p>${en ? `
+    <p class="links translation-note">${T.translationNote[0]} <a href="/hoshizora-night/" hreflang="ja">${T.translationNote[1]}</a>${T.translationNote[2]}</p>` : ''}
   </div>
 </div>
 <p id="toast" class="toast" role="status" aria-live="polite" hidden></p>

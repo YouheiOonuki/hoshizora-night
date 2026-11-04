@@ -1,4 +1,4 @@
-/* 生成物・手で編集しない: YouheiOonuki/hoshizora-sanpo@6a01f7a63e233fc1fbffe1c182a97cbdb16abb58 の catalog.js を tools/sync-from-sanpo.mjs で写した（確認日 2026-10-15、元の sha256 fbc219cb5b234568fb59de1070d00a6444ea25b8b458740c887ae9e1bc1db007） */
+/* 生成物・手で編集しない: YouheiOonuki/hoshizora-sanpo@30071bbc3483822a28f9846d383678666b37d3f7 の catalog.js を tools/sync-from-sanpo.mjs で写した（確認日 2026-11-04、元の sha256 fbc219cb5b234568fb59de1070d00a6444ea25b8b458740c887ae9e1bc1db007） */
 'use strict';
 /* 実在の星 3249 個（5.6等まで）。tools/build-catalog.js で生成。手で編集しない。
    出典: Yale Bright Star Catalogue, 5th Revised Ed. (Hoffleit & Warren 1991)
