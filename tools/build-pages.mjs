@@ -89,6 +89,7 @@ export function page(lang, month) {
 <script type="application/ld+json">${JSON.stringify(ld)}</script>
 </head>
 <body class="app">
+<main>
 <canvas id="sky" tabindex="0" aria-label="${T.skyLabel}"></canvas>
 <div id="labels" class="labels" aria-hidden="true"></div>
 <div id="scopeMask" class="scopemask" aria-hidden="true" hidden></div>
@@ -178,6 +179,7 @@ export function page(lang, month) {
 <div id="redFilter" class="redfilter"></div>
 <p id="slow" class="slow" hidden><a href="${light}">${T.light}</a></p>
 <p id="nogl" class="nogl" hidden><a href="${light}">${T.light}</a></p>
+</main>
 <script src="/hoshizora-night/render/gate.js"></script>
 <script src="/hoshizora-night/engine/astro.js"></script>
 <script src="/hoshizora-night/engine/catalog.js"></script>
