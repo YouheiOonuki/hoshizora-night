@@ -17,8 +17,6 @@ const OG = JSON.parse(fs.readFileSync(path.join(ROOT, 'og', 'og.json'), 'utf8'))
 
 export const SITE = 'https://yorozu-craft.com';
 export const BASE = `${SITE}/hoshizora-night/`;
-export const PUBLISHED = '2026-10-03';
-export const POSTER_PUBLISHED = '2026-10-03';
 const BEACON = `<!-- Cloudflare Web Analytics（Cookie を使わないアクセス解析） --><script type='module' src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "b79bf821e1fd4b6683866d493b1de426"}'></script><!-- End Cloudflare Web Analytics -->`;
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
@@ -317,7 +315,6 @@ ${BEACON}
 export function sitemap() {
   const url = (loc) => `  <url>
     <loc>${loc}</loc>
-    <lastmod>${PUBLISHED}</lastmod>
     <xhtml:link rel="alternate" hreflang="ja" href="${BASE}"/>
     <xhtml:link rel="alternate" hreflang="en" href="${BASE}en/"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="${BASE}"/>
@@ -328,7 +325,6 @@ ${url(BASE)}
 ${url(`${BASE}en/`)}
   <url>
     <loc>${POSTER.url}</loc>
-    <lastmod>${POSTER_PUBLISHED}</lastmod>
   </url>
 </urlset>
 `;
