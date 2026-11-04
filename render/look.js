@@ -245,9 +245,7 @@
         ['時間たび', '時間を動かすと、星と太陽・月が動きます'], ['場所', 'シドニーに行くと南十字星が見えます'], ['赤いライト', '夜の屋外で目が暗さに慣れたまま使えます']],
       helpKana: [['ゆびで なぞる', 'そらを みまわす'], ['2ほんゆび', 'おおきく したり ちいさく したり'], ['タップ', 'せいざや つき の おはなしが ひらくよ'],
         ['じかんたび', 'じかんを うごかすと、ほしと たいようが うごく！'], ['ばしょ', 'シドニーに いくと みなみじゅうじせいが みえる']],
-      links: { zukan: '星座図鑑', calendar: '天文カレンダー', tsuki: '月の出・月の入り', shinwa: 'ギリシャ神話', hayamiban: '星座早見盤を作る', poster: '星空ポスター' },
-      // 「日本語版が正」の 1 文（IMPLEMENTER 6 章 (3)）。画面に出すのは英語のページだけ（[前, リンクの文字, 後]）。日本語は英語の文の元の意味
-      translationNote: ['この英語のページは', '日本語のページ', 'の翻訳です。違いがあれば日本語版に従います。'] },
+      links: { zukan: '星座図鑑', calendar: '天文カレンダー', tsuki: '月の出・月の入り', shinwa: 'ギリシャ神話', hayamiban: '星座早見盤を作る', poster: '星空ポスター' } },
     en: { now: 'Now', pause: 'Pause', play: 'Play', share: 'Share', copied: '✓', here: 'Here', light: 'Light version',
       time: 'Time', close: 'Close', about: 'About', privacy: 'Privacy policy', guide: 'How it works', geoFail: 'Location unavailable',
       dirs: ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'], near: 'Near', lines: 'Lines',
