@@ -90,7 +90,9 @@ test('わぁきれい（オーナー決定 2026-10-03）: 6.5 等まで・演出
 test('5 文字（企画書 74 で 20 語の上限を外した）: 日英で項目が揃い、英語の文は軽量版の英語の画面と同じもの', () => {
   // ひらがなモード（日本語だけ）の 2 項目を除いて、日英で同じ項目
   const ja = Object.keys(L.TEXT.ja).filter((k) => !['bKids', 'helpKana'].includes(k)).sort();
-  const en = Object.keys(L.TEXT.en).filter((k) => !['bMoon', 'lat', 'lon', 'go'].includes(k)).sort();
+  // 英語だけのキー: translationNote は「日本語版が正」の 1 文（IMPLEMENTER 6 章 (3)）で、英語のページにだけ出す（yorozu-plans ROADMAP 7.182）
+  const EN_ONLY = ['translationNote'];
+  const en = Object.keys(L.TEXT.en).filter((k) => !['bMoon', 'lat', 'lon', 'go', ...EN_ONLY].includes(k)).sort();
   assert.deepStrictEqual(en, ja);
   // 軽量版の英語の画面（hoshizora-sanpo の en/index.html。tools/sync-from-sanpo.mjs が tests/fixtures/ に写す）にある文字列をそのまま使う。
   // それ以外は企画書 74 より前からフル版にあった英語（K132 の 20 語）だけ。新しく書いた英語は出典の 2 行（CREDITS）だけで、全文は k132-parity-en-review.md
