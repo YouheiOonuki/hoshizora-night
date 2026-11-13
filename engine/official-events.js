@@ -1,4 +1,4 @@
-/* 生成物・手で編集しない: YouheiOonuki/hoshizora-sanpo@30071bbc3483822a28f9846d383678666b37d3f7 の tools/official-events.js を tools/sync-from-sanpo.mjs で写した（確認日 2026-11-04、元の sha256 98694d04fa0d2ef9137c1933fd99f80c92f6771f428b7284beefbfbc0d5e6c8f） */
+/* 生成物・手で編集しない: YouheiOonuki/hoshizora-sanpo@283836b84c7bd26923f9019bd82dd235a1fd83cc の tools/official-events.js を tools/sync-from-sanpo.mjs で写した（確認日 2026-11-14、元の sha256 6096a890d640790fbd3ce59346a89ec2a935f2d8f6295973c57b2adb1ccdd88c） */
 'use strict';
 /* 天文カレンダーの「公的機関の発表」データ（手で入れる。推測で埋めない）
  *
@@ -9,8 +9,8 @@
  * - 毎年2月に国立天文台が翌年の暦要項を、月ごとに「ほしぞら情報」を発表するので、それを見て足す
  * 確認日: CHECKED（この日に出典ページを見て書き写した）
  */
-const CHECKED = '2026-09-23';
-const CHECKED_QUARTERS = '2026-10-02'; // 上弦・下弦（MOON_QUARTERS）を暦要項から書き写した日
+const CHECKED = '2026-11-13';
+const CHECKED_QUARTERS = '2026-11-13'; // 上弦・下弦（MOON_QUARTERS）を暦要項から書き写した日
 
 const SRC = {
   'rekiyou2026-moon': ['国立天文台 暦計算室「令和8年（2026）暦要項 朔弦望」', 'https://eco.mtk.nao.ac.jp/koyomi/yoko/2026/rekiyou263.html'],

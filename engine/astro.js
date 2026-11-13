@@ -1,4 +1,4 @@
-/* 生成物・手で編集しない: YouheiOonuki/hoshizora-sanpo@30071bbc3483822a28f9846d383678666b37d3f7 の astro.js を tools/sync-from-sanpo.mjs で写した（確認日 2026-11-04、元の sha256 38e75694913d9819e57e9c222feb93c4e2cc34059c032f46e2644fe3a2f07663） */
+/* 生成物・手で編集しない: YouheiOonuki/hoshizora-sanpo@283836b84c7bd26923f9019bd82dd235a1fd83cc の astro.js を tools/sync-from-sanpo.mjs で写した（確認日 2026-11-14、元の sha256 38e75694913d9819e57e9c222feb93c4e2cc34059c032f46e2644fe3a2f07663） */
 'use strict';
 /* =================================================================
    ほしぞらさんぽ — 天文計算（ブラウザでも Node でも読める）
