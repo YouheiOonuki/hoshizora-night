@@ -1,4 +1,4 @@
-/* 生成物・手で編集しない: YouheiOonuki/hoshizora-sanpo@30071bbc3483822a28f9846d383678666b37d3f7 の text.js を tools/sync-from-sanpo.mjs で写した（確認日 2026-11-04、元の sha256 af66020736e8ce0bccdb4ee59f1021c933860d9a7a9ae0b1348082b4117c771a） */
+/* 生成物・手で編集しない: YouheiOonuki/hoshizora-sanpo@283836b84c7bd26923f9019bd82dd235a1fd83cc の text.js を tools/sync-from-sanpo.mjs で写した（確認日 2026-11-14、元の sha256 af66020736e8ce0bccdb4ee59f1021c933860d9a7a9ae0b1348082b4117c771a） */
 'use strict';
 /* =================================================================
    ほしぞらさんぽ — 画面の文言（main.js が使う）
