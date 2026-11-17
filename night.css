@@ -87,7 +87,8 @@ a { color: #9fc3ff; }
   border-radius: 50%; box-shadow: 0 0 0 1px #3a3025; pointer-events: none; z-index: 1; }
 
 /* ===== フル版の画面（ROADMAP 7.15.1、企画書 74 で軽量版の機能を全部）。フォントはシステムフォント ===== */
-.app { --ink: #e6ebf7; --dim: #9aa8c7; --gold: #f0c86e; --line: rgba(160, 185, 235, .28); --glass: rgba(8, 14, 34, .55); --panel: rgba(7, 11, 28, .9);
+/* --muted: 皮を外したページ（data-skin="base"）は色をページが決める（base.css の約束）。配信のときに差し込む「近い道具」の注記が使う。無いと既定の #555 が暗い背景で 2.71:1 になった */
+.app { --muted: var(--dim); --ink: #e6ebf7; --dim: #9aa8c7; --gold: #f0c86e; --line: rgba(160, 185, 235, .28); --glass: rgba(8, 14, 34, .55); --panel: rgba(7, 11, 28, .9);
   --serif: "Hiragino Mincho ProN", "Yu Mincho", "Noto Serif JP", Georgia, serif;
   overflow: hidden; color: var(--ink); -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; }
 .app canvas { position: fixed; inset: 0; outline: none; }
