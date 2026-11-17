@@ -108,7 +108,11 @@
   /* ---------------- 描画器 ---------------- */
   let r;
   const TEX = { milky: '/hoshizora-night/render/milkyway.jpg', moon: '/hoshizora-night/render/moon.jpg' };
-  try { r = R.create(canvas, stars, MW, { instantTextures: reduce.matches, textures: params.get('tex') === 'off' ? {} : TEX, onTexture: () => { dirty = true; texSettle = performance.now() + 1100; } }); } catch (e) { showLight(); return; }
+  // 天の川の画像は段階 full でしか描かない（frame の milkyTex）。full のまま残ると決まってから読む（loadMilky。Q-398: light に落ちた回で 808 KB を読んで描いていなかった）
+  const texOn = params.get('tex') !== 'off';
+  let milkyAsked = false;
+  const loadMilky = () => { if (texOn && !milkyAsked) { milkyAsked = true; r.loadTexture('milky', TEX.milky); } };
+  try { r = R.create(canvas, stars, MW, { instantTextures: reduce.matches, textures: texOn ? { moon: TEX.moon } : {}, onTexture: () => { dirty = true; texSettle = performance.now() + 1100; } }); } catch (e) { showLight(); return; }
   let texSettle = 0;
   const dprCap = () => Math.min(window.devicePixelRatio || 1, 2);
   function fit() {
@@ -208,6 +212,7 @@
   /* ---------------- 1 フレーム ---------------- */
   let dirty = true;
   const probe = { on: params.get('probe') !== 'off', start: 0, last: 0, dts: [] };
+  if (!probe.on) loadMilky();
   const meter = params.get('fps') === 'show' ? { el: Object.assign(document.createElement('p'), { className: 'fps' }), start: 0, last: 0, dts: [], all: [] } : null;
   if (meter) document.body.appendChild(meter.el);
   let introStart = reduce.matches ? null : -1;
@@ -233,7 +238,7 @@
         const fps = 1000 / L.median(probe.dts), next = L.nextStage(st.stage, fps);
         window.__night.fps.push(Math.round(fps * 10) / 10);
         if (next === 'reduced' && st.stage === 'full') { st.stage = next; st.limit = L.FPS.reducedMag; probe.start = now; probe.dts = []; if (trail) setTrail(false); if (scope) scopeUi(); }
-        else { if (next === 'light') { st.stage = next; showLight(); } probe.on = false; }
+        else { if (next === 'light') { st.stage = next; showLight(); } else if (st.stage === 'full') loadMilky(); probe.on = false; }
         window.__night.stage = st.stage;
       }
     }
@@ -988,7 +993,7 @@
     allLines: showLines, intro: () => introStart == null, meteor: () => !!meteor, forceMeteor: (dur) => { nextMeteor = 0; forcedDur = dur || 0; },
     gyro: null, light: null, art: false, trail: false, trailFrames: 0, scope: null, faint: 0, setScope: (m) => setScope(m), event: null, playEvent: (i) => playEvent(WOW.upcoming(Date.now(), O)[i]), eclipse: () => WOW.eclipseAt(sim), evSpawned: () => (ev ? ev.spawned || 0 : 0),
     lookAt: (raDeg, decDeg) => { const h = S.apply(S.starMatrix(sim, place.lat, place.lon), S.vec(raDeg * DEG, decDeg * DEG)); st.az = Math.atan2(h[0], h[1]); st.alt = Math.asin(h[2]); fly = null; dirty = true; return Math.asin(h[2]) / DEG; }, artState: () => r.artState(), deep: null, photoState: () => r.photoState(), openDso: (id) => openDso(DSOI.find((d) => d.id === id), true), setLight: (u) => { lightSlider.value = String(Math.round(u * WOW.LIGHT.steps)); lightSlider.dispatchEvent(new Event('input')); }, reduce: reduce.matches, select: (x, y) => handleTap(x, y), view: st, flying: () => !!fly, textures: () => r.textures(),
-    loading: () => { const t = r.textures(); return params.get('tex') !== 'off' && (!t.milky || !t.moon || performance.now() < texSettle); },
+    loading: () => { const t = r.textures(); return texOn && ((st.stage === 'full' && !t.milky) || !t.moon || performance.now() < texSettle); },
     where: (name) => {   // 確かめ用: 名前の付いた星・惑星・月の画面上の位置（CSS px）。見えなければ null
       const bp = lastFrameState && lastFrameState.bodyPos[name]; if (bp) return bp.x == null ? null : { x: bp.x, y: bp.y };
       const s = picks.find((x) => x.name === name); if (!s) return null;

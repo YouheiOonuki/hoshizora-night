@@ -701,7 +701,7 @@ void main(){ vec2 e = min(vUV, 1.0 - vUV); float edge = smoothstep(0.0, 0.06, mi
     /** 画面の 1° が何 CSS px か（画面の中心で） */
     function pxPerDeg(st, cssW, cssH) { return st.zoom / Math.tan(st.fovDeg * Math.PI / 720) * Math.min(cssW, cssH) / 2 * (Math.PI / 180) / 2; }
 
-    return { gl, draw, setBodies, setLines, project, pxPerDeg, setArt, loadArt, artState, loadPhoto, photoState, trailMax: !!minmax, setFaint, faintCount: () => (faintBufs ? faintBufs.n : 0), textures: () => ({ milky: !!tex.milky, moon: !!tex.moon }) };
+    return { gl, draw, loadTexture, setBodies, setLines, project, pxPerDeg, setArt, loadArt, artState, loadPhoto, photoState, trailMax: !!minmax, setFaint, faintCount: () => (faintBufs ? faintBufs.n : 0), textures: () => ({ milky: !!tex.milky, moon: !!tex.moon }) };
   }
 
   root.NightRender = { create, viewMatrix, starAttribs, milkyUniforms, MWN };

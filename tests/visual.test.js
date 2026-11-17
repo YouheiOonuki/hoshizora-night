@@ -103,5 +103,10 @@ test('読み込み中も星が出る: 画像は描画器を作った後に読み
   const gl = fs.readFileSync(path.join(ROOT, 'render', 'night-gl.js'), 'utf8');
   assert.ok(gl.includes('img.onload') && gl.includes("if (uTexK < 0.999)") && gl.includes('blankTexture'));
   // 4 等までに絞った段階（遅い端末）では天の川を描かない
-  assert.ok(fs.readFileSync(path.join(ROOT, 'app', 'night.js'), 'utf8').includes("milky: st.stage === 'full' ?"));
+  const app = fs.readFileSync(path.join(ROOT, 'app', 'night.js'), 'utf8');
+  assert.ok(app.includes("milky: st.stage === 'full' ?"));
+  // 描かない段階では天の川の画像を読まない: 作るときは月だけ、天の川は full のまま残ると決まったとき（か fps を測らないとき）に読む（Q-398）
+  assert.ok(app.includes('textures: texOn ? { moon: TEX.moon } : {}') && gl.includes('return { gl, draw, loadTexture,'));
+  assert.deepStrictEqual(app.match(/loadMilky\(\)/g).length, 2);
+  assert.ok(app.includes("else if (st.stage === 'full') loadMilky();") && app.includes('if (!probe.on) loadMilky();'));
 });
