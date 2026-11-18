@@ -83,12 +83,12 @@ h1 { font-size: 1.45rem; font-weight: 600; margin: 8px 0 4px; letter-spacing: .0
 a { color: #9fc3ff; }
 .box { border: 1px solid var(--line); border-radius: 12px; background: var(--panel); padding: 12px 14px; margin: 0 0 12px; }
 legend { padding: 0 6px; color: var(--dim); font-size: .9rem; }
-label { display: flex; flex-direction: column; gap: 4px; font-size: .9rem; color: var(--dim); margin: 6px 0; flex: 1; min-width: 0; }
+label { display: flex; flex-direction: column; gap: 4px; font-size: .9rem; color: var(--dim); margin: 8px 0; flex: 1; min-width: 0; }
 input[type=date], input[type=time], input[type=text], input[type=number], select {
   font: inherit; font-size: 16px; color: var(--ink); background: #060a1a; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; min-height: 44px; width: 100%; }
 .row { display: flex; gap: 10px; flex-wrap: wrap; }
 .row > label { min-width: 130px; }
-.check { flex-direction: row; align-items: center; gap: 8px; color: var(--ink); }
+.check { flex-direction: row; align-items: center; gap: 8px; color: var(--ink); min-height: var(--tap); }
 .check input { width: 20px; height: 20px; accent-color: var(--accent); }
 .paper { display: flex; gap: 8px; margin-top: 10px; }
 .paper label { flex: 0 0 auto; margin: 0; }
