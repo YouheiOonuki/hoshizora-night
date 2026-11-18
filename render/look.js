@@ -242,7 +242,7 @@
       skyLabel: '星空。ドラッグで見まわし、ピンチで拡大、星座をタップで解説。矢印キーでも動かせます',
       helpLabel: 'つかいかた', helpStart: ['はじめる', 'はじめる'], sheetLabel: 'くわしい説明', timePanel: '時間たび', placePanel: '場所', menu: 'メニュー',
       help: [['ドラッグ', '空を見まわす（スマホは指でスワイプ）'], ['ピンチ / ホイール', 'ズームイン・ズームアウト'], ['タップ', '星座・星・月・惑星の説明がひらきます'],
-        ['時間たび', '時間を動かすと、星と太陽・月が動きます'], ['場所', 'シドニーに行くと南十字星が見えます'], ['赤いライト', '夜の屋外で目が暗さに慣れたまま使えます']],
+        ['時間たび', '時間を動かすと、星と太陽・月が動きます'], ['場所', 'シドニーに行くと南十字星が見えます'], ['赤いライト', '夜の屋外で目が暗さに慣れたまま使えます'], ['キーボード', '見たい星を画面のまん中に合わせて Enter を押します']],
       helpKana: [['ゆびで なぞる', 'そらを みまわす'], ['2ほんゆび', 'おおきく したり ちいさく したり'], ['タップ', 'せいざや つき の おはなしが ひらくよ'],
         ['じかんたび', 'じかんを うごかすと、ほしと たいようが うごく！'], ['ばしょ', 'シドニーに いくと みなみじゅうじせいが みえる']],
       links: { zukan: '星座図鑑', calendar: '天文カレンダー', tsuki: '月の出・月の入り', shinwa: 'ギリシャ神話', hayamiban: '星座早見盤を作る', poster: '星空ポスター' } },
@@ -256,7 +256,7 @@
       skyLabel: 'Night sky. Drag to look around, pinch to zoom, tap a constellation for notes. Arrow keys also work.',
       helpLabel: 'How to use', helpStart: 'Start', sheetLabel: 'Details', timePanel: 'Time travel', placePanel: 'Place', menu: 'Menu',
       help: [['Drag', 'Look around (swipe on a phone)'], ['Pinch / wheel', 'Zoom in and out'], ['Tap', 'Open notes on a constellation, star, the Moon or a planet'],
-        ['Time', 'Move time and watch the stars, Sun and Moon move'], ['Place', 'Pick a city or type a latitude and longitude'], ['Red light', 'Keeps your eyes used to the dark outdoors']],
+        ['Time', 'Move time and watch the stars, Sun and Moon move'], ['Place', 'Pick a city or type a latitude and longitude'], ['Red light', 'Keeps your eyes used to the dark outdoors'], ['Keyboard', 'Move the star to the center of the screen and press Enter']],
       links: { calendar: 'Sky calendar', planisphere: 'Printable planisphere' },
       translationNote: ['This is an English translation of the', 'Japanese page', '. If the two differ, the Japanese version prevails.'] },
   };

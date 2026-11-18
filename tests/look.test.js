@@ -100,10 +100,13 @@ test('5 文字（企画書 74 で 20 語の上限を外した）: 日英で項�
   // 使い方パネル（help）の英語。軽量版は段 2 の 2（sanpo f3c589c）で英語の操作説明の幕を消したが、フル版のパネルは残す。
   // 「night の既存の英語」として BEFORE と同じ扱いで名指しし、文は変えない（ROADMAP 7.21 2026-10-14 の (a)。パネルをどうするかは段 3 で）
   const HELP_BEFORE = ['Drag', 'Look around (swipe on a phone)', 'Pinch / wheel', 'Zoom in and out', 'Tap', 'Open notes on a constellation, star, the Moon or a planet', 'Move time and watch the stars, Sun and Moon move', 'Pick a city or type a latitude and longitude', 'Keeps your eyes used to the dark outdoors', 'Start'];
+  // Q-438 で足した使い方の 1 行（キーボードで星を選ぶ）。新しい英語なので英文の関門の前は枝に止める
+  const HELP_Q438 = ['Keyboard', 'Move the star to the center of the screen and press Enter'];
   const flat = (v) => (v && typeof v === 'object') ? Object.values(v).flatMap(flat) : [v];
   const SANPO_EN = require('node:fs').readFileSync(require('node:path').join(__dirname, 'fixtures', 'sanpo-en-strings.txt'), 'utf8').split('\n');
   const EN = flat(L.TEXT.en);
-  const fromSanpo = EN.filter((s) => !BEFORE.includes(s) && !HELP_BEFORE.includes(s));
+  const fromSanpo = EN.filter((s) => !BEFORE.includes(s) && !HELP_BEFORE.includes(s) && !HELP_Q438.includes(s));
+  for (const s of HELP_Q438) assert.ok(EN.includes(s), `${s} はもう使っていないので HELP_Q438 から外す`);
   for (const s of BEFORE) assert.ok(!SANPO_EN.includes(s), `${s} は軽量版にあるので BEFORE から外す`);
   for (const s of HELP_BEFORE) {
     assert.ok(!SANPO_EN.includes(s), `${s} は軽量版にあるので HELP_BEFORE から外す`);

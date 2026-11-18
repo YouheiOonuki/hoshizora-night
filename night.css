@@ -92,6 +92,9 @@ a { color: #9fc3ff; }
   --serif: "Hiragino Mincho ProN", "Yu Mincho", "Noto Serif JP", Georgia, serif;
   overflow: hidden; color: var(--ink); -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; }
 .app canvas { position: fixed; inset: 0; outline: none; }
+/* キーボードで星を選ぶときの的（Q-438）: 空の絵にキーボードのフォーカスがある間だけ、画面のまん中に。Enter・Space でこの点を押したことになる */
+.aim { position: fixed; left: 50%; top: 50%; width: 28px; height: 28px; margin: -14px 0 0 -14px; border: 2px solid #ffd98a; border-radius: 50%; box-sizing: border-box; pointer-events: none; z-index: 1; }
+.aim[hidden] { display: none; }
 .app button, .app a.chip { font: inherit; color: inherit; }
 /* ひらがなモードの切りかえ: .ad = おとな用、.kd = こども用（軽量版と同じ） */
 body:not(.kids) .kd, body.kids .ad { display: none !important; }

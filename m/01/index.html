@@ -36,6 +36,7 @@
 <canvas id="sky" tabindex="0" aria-label="星空。ドラッグで見まわし、ピンチで拡大、星座をタップで解説。矢印キーでも動かせます"></canvas>
 <div id="labels" class="labels" aria-hidden="true"></div>
 <div id="scopeMask" class="scopemask" aria-hidden="true" hidden></div>
+<div id="aim" class="aim" aria-hidden="true" hidden></div>
 <div id="dirs" class="dirs" aria-hidden="true"><span class="main">北</span><span class="sub">北東</span><span class="main">東</span><span class="sub">南東</span><span class="main">南</span><span class="sub">南西</span><span class="main">西</span><span class="sub">北西</span></div>
 <header class="hud">
   <h1 class="visually-hidden">ほしぞらさんぽ フル版｜今夜の星空を大きな画面で</h1>
@@ -104,12 +105,12 @@
 </div>
 <section id="sheet" class="sheet" role="dialog" aria-label="くわしい説明" hidden>
   <button id="sheetClose" type="button" class="icon close" aria-label="閉じる">×</button>
-  <div id="sheetBody"></div>
+  <div id="sheetBody" aria-live="polite"></div>
 </section>
 <div id="help" class="help" hidden>
   <div class="helpcard" role="dialog" aria-labelledby="helpTitle">
     <h2 id="helpTitle">ほしぞらさんぽ</h2>
-    <ul class="ad"><li><span class="k">ドラッグ</span><span>空を見まわす（スマホは指でスワイプ）</span></li><li><span class="k">ピンチ / ホイール</span><span>ズームイン・ズームアウト</span></li><li><span class="k">タップ</span><span>星座・星・月・惑星の説明がひらきます</span></li><li><span class="k">時間たび</span><span>時間を動かすと、星と太陽・月が動きます</span></li><li><span class="k">場所</span><span>シドニーに行くと南十字星が見えます</span></li><li><span class="k">赤いライト</span><span>夜の屋外で目が暗さに慣れたまま使えます</span></li></ul>
+    <ul class="ad"><li><span class="k">ドラッグ</span><span>空を見まわす（スマホは指でスワイプ）</span></li><li><span class="k">ピンチ / ホイール</span><span>ズームイン・ズームアウト</span></li><li><span class="k">タップ</span><span>星座・星・月・惑星の説明がひらきます</span></li><li><span class="k">時間たび</span><span>時間を動かすと、星と太陽・月が動きます</span></li><li><span class="k">場所</span><span>シドニーに行くと南十字星が見えます</span></li><li><span class="k">赤いライト</span><span>夜の屋外で目が暗さに慣れたまま使えます</span></li><li><span class="k">キーボード</span><span>見たい星を画面のまん中に合わせて Enter を押します</span></li></ul>
     <ul class="kd"><li><span class="k">ゆびで なぞる</span><span>そらを みまわす</span></li><li><span class="k">2ほんゆび</span><span>おおきく したり ちいさく したり</span></li><li><span class="k">タップ</span><span>せいざや つき の おはなしが ひらくよ</span></li><li><span class="k">じかんたび</span><span>じかんを うごかすと、ほしと たいようが うごく！</span></li><li><span class="k">ばしょ</span><span>シドニーに いくと みなみじゅうじせいが みえる</span></li></ul>
     <button id="helpStart" type="button" class="gold"><span class="ad">はじめる</span><span class="kd">はじめる</span></button>
     <p class="links"><a href="/hoshizora-sanpo/zukan/">星座図鑑</a> · <a href="/hoshizora-sanpo/calendar/">天文カレンダー</a> · <a href="/hoshizora-sanpo/tsuki/">月の出・月の入り</a> · <a href="/hoshizora-sanpo/shinwa/">ギリシャ神話</a> · <a href="/hoshizora-sanpo/hayamiban/">星座早見盤を作る</a> · <a href="/hoshizora-night/poster/">星空ポスター</a> · <a href="/hoshizora-sanpo/about.html">使い方</a> · <a href="/about.html">運営者情報</a> · <a href="/privacy-policy.html">プライバシーポリシー</a> · <a href="/hoshizora-night/en/" hreflang="en" lang="en">English</a></p>

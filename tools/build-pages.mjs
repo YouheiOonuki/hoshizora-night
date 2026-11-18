@@ -93,6 +93,7 @@ export function page(lang, month) {
 <canvas id="sky" tabindex="0" aria-label="${T.skyLabel}"></canvas>
 <div id="labels" class="labels" aria-hidden="true"></div>
 <div id="scopeMask" class="scopemask" aria-hidden="true" hidden></div>
+<div id="aim" class="aim" aria-hidden="true" hidden></div>
 <div id="dirs" class="dirs" aria-hidden="true">${T.dirs.map((d, i) => `<span class="${i % 2 ? 'sub' : 'main'}">${d}</span>`).join('')}</div>
 <header class="hud">
   <h1 class="visually-hidden">${esc(h1)}</h1>
@@ -161,7 +162,7 @@ export function page(lang, month) {
 </div>
 <section id="sheet" class="sheet" role="dialog" aria-label="${T.sheetLabel}" hidden>
   <button id="sheetClose" type="button" class="icon close" aria-label="${T.close}">×</button>
-  <div id="sheetBody"></div>
+  <div id="sheetBody" aria-live="polite"></div>
 </section>
 <div id="help" class="help" hidden>
   <div class="helpcard" role="dialog" aria-labelledby="helpTitle">
