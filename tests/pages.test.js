@@ -145,6 +145,14 @@ test('軽量版の画面の機能が全部ある（企画書 74 の棚卸し）:
     for (const l of links) assert.ok(html.includes(`href="${l}"`), `${p} ${l}`);
     assert.ok(html.includes('/hoshizora-night/engine/text.js') && html.includes('/hoshizora-night/render/info.js'), p);
   }
+  // キーボードで星を選ぶ（Q-438）: まん中の的と、説明の箱は読み上げに届く。Enter・Space はまん中の点を handleTap に渡す（星を決める計算を 2 つ持たない）
+  for (const p of ['index.html', 'en/index.html']) {
+    const html = read(p);
+    assert.ok(html.includes('<div id="aim" class="aim" aria-hidden="true" hidden></div>') && html.includes('<div id="sheetBody" aria-live="polite"></div>'), p);
+  }
+  const app = read('app/night.js');
+  assert.ok(app.includes("(e.key === 'Enter' || e.key === ' ')") && app.includes('handleTap(b.left + b.width / 2, b.top + b.height / 2)'));
+  assert.strictEqual((app.match(/function handleTap\(/g) || []).length, 1);
   // ひらがなモードは軽量版と同じく .ad・.kd の切りかえ
   assert.ok(read('index.html').includes('<span class="ad">星座線</span><span class="kd">せいざの せん</span>'));
   assert.match(read('night.css'), /body:not\(\.kids\) \.kd, body\.kids \.ad \{ display: none !important; \}/);

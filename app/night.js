@@ -500,7 +500,13 @@
   /* ---------------- 操作 ---------------- */
   const ptrs = new Map(); let pinch0 = 0, zoom0 = 1, down = null;
   const k = () => st.zoom / Math.tan(st.fovDeg * Math.PI / 720) * Math.min(canvas.clientWidth, canvas.clientHeight) / 2;
+  // キーボードで星を選ぶ的（Q-438）: 空の絵にキーボードのフォーカスがある間だけ出す。ポインタで触ったら消す
+  const aim = $('aim');
+  const showAim = (on) => { if (aim) aim.hidden = !on; };
+  canvas.addEventListener('focus', () => showAim(canvas.matches(':focus-visible')));
+  canvas.addEventListener('blur', () => showAim(false));
   canvas.addEventListener('pointerdown', (e) => {
+    showAim(false);
     try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* なし */ }
     fly = null;
     ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
@@ -533,6 +539,9 @@
   addEventListener('keydown', (e) => {
     if (e.key === 'Escape') { closeSheet(); closePanels(); $('help').hidden = true; return; }
     if (e.target !== canvas && e.target !== document.body) return;
+    if (e.target === canvas) showAim(true);
+    // Enter・Space: 画面のまん中を押したのと同じ（星を決める計算は handleTap の 1 つだけ。クイズの答えも同じ道）
+    if (e.target === canvas && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); if (!e.repeat) { const b = canvas.getBoundingClientRect(); handleTap(b.left + b.width / 2, b.top + b.height / 2); } return; }
     const step = 4 * DEG / st.zoom;
     if (e.key === 'ArrowLeft') st.az -= step; else if (e.key === 'ArrowRight') st.az += step;
     else if (e.key === 'ArrowUp') st.alt = Math.min(89 * DEG, st.alt + step);
@@ -992,7 +1001,7 @@
   window.__night = { stage: 'full', fps: [], playing, picked: null, get place() { return place.id; }, sheet: null, toast: null, get sim() { return sim; }, get limit() { return st.limit; },
     allLines: showLines, intro: () => introStart == null, meteor: () => !!meteor, forceMeteor: (dur) => { nextMeteor = 0; forcedDur = dur || 0; },
     gyro: null, light: null, art: false, trail: false, trailFrames: 0, scope: null, faint: 0, setScope: (m) => setScope(m), event: null, playEvent: (i) => playEvent(WOW.upcoming(Date.now(), O)[i]), eclipse: () => WOW.eclipseAt(sim), evSpawned: () => (ev ? ev.spawned || 0 : 0),
-    lookAt: (raDeg, decDeg) => { const h = S.apply(S.starMatrix(sim, place.lat, place.lon), S.vec(raDeg * DEG, decDeg * DEG)); st.az = Math.atan2(h[0], h[1]); st.alt = Math.asin(h[2]); fly = null; dirty = true; return Math.asin(h[2]) / DEG; }, artState: () => r.artState(), deep: null, photoState: () => r.photoState(), openDso: (id) => openDso(DSOI.find((d) => d.id === id), true), setLight: (u) => { lightSlider.value = String(Math.round(u * WOW.LIGHT.steps)); lightSlider.dispatchEvent(new Event('input')); }, reduce: reduce.matches, select: (x, y) => handleTap(x, y), view: st, flying: () => !!fly, textures: () => r.textures(),
+    lookAt: (raDeg, decDeg) => { const h = S.apply(S.starMatrix(sim, place.lat, place.lon), S.vec(raDeg * DEG, decDeg * DEG)); st.az = Math.atan2(h[0], h[1]); st.alt = Math.asin(h[2]); fly = null; dirty = true; return Math.asin(h[2]) / DEG; }, artState: () => r.artState(), deep: null, photoState: () => r.photoState(), openDso: (id) => openDso(DSOI.find((d) => d.id === id), true), setLight: (u) => { lightSlider.value = String(Math.round(u * WOW.LIGHT.steps)); lightSlider.dispatchEvent(new Event('input')); }, reduce: reduce.matches, select: (x, y) => handleTap(x, y), quizScore: () => (quiz ? quiz.score : null), view: st, flying: () => !!fly, textures: () => r.textures(),
     loading: () => { const t = r.textures(); return texOn && ((st.stage === 'full' && !t.milky) || !t.moon || performance.now() < texSettle); },
     where: (name) => {   // 確かめ用: 名前の付いた星・惑星・月の画面上の位置（CSS px）。見えなければ null
       const bp = lastFrameState && lastFrameState.bodyPos[name]; if (bp) return bp.x == null ? null : { x: bp.x, y: bp.y };
