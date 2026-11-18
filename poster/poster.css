@@ -105,12 +105,12 @@ input[type=date], input[type=time], input[type=text], input[type=number], select
 .note { margin: 4px 0; font-size: .85rem; color: var(--dim); }
 .frame { display: flex; justify-content: center; margin: 10px 0 16px; }
 #preview { display: block; max-width: 100%; height: auto; box-shadow: 0 6px 30px rgba(0, 0, 0, .6), 0 0 0 1px rgba(160, 185, 235, .18); }
-summary { cursor: pointer; color: var(--ink); min-height: 32px; }
+summary { cursor: pointer; color: var(--ink); }
 .links { margin-top: 18px; font-size: .85rem; color: var(--dim); }
 .nogl { padding: 12px; border: 1px solid var(--line); border-radius: 12px; }
 .topbar { position: fixed; left: 0; right: 0; top: 0; z-index: 10; display: flex; align-items: center; justify-content: space-between; gap: 10px;
   padding: 6px 16px; background: rgba(6, 10, 26, .94); border-bottom: 1px solid var(--line); }
 .topbar span { font-size: .9rem; color: var(--dim); }
-.topbar button { min-height: 40px; padding: 0 16px; font-size: .9rem; }
+.topbar button { min-height: var(--tap); padding: 0 16px; font-size: .9rem; }
 [hidden] { display: none !important; }
 @media print { .topbar { display: none !important; } }
