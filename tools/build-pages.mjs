@@ -88,7 +88,7 @@ export function page(lang, month) {
 <link rel="stylesheet" href="/hoshizora-night/night.css">
 <script type="application/ld+json">${JSON.stringify(ld)}</script>
 </head>
-<body class="app">
+<body class="app" data-fullscreen>
 <main>
 <canvas id="sky" tabindex="0" aria-label="${T.skyLabel}"></canvas>
 <div id="labels" class="labels" aria-hidden="true"></div>
