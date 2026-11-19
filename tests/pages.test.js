@@ -63,6 +63,16 @@ test('ページはひな形（tools/build-pages.mjs）から作ったものと�
   for (const [rel, body] of outputs()) assert.strictEqual(read(rel), body, `${rel} が古い（node tools/build-pages.mjs）`);
 });
 
+// 全画面の印（yorozu-plans QUEUE Q-601・条件 28・38）: 下へ送れないページは <body> の data-fullscreen で名乗る。
+// ひな形 page() が書く 26 枚が全部名乗り、ほかのページ（ポスター・技術確認・試し描き・404）は名乗らない。root の build-near.mjs がこの印を読む
+test('全画面の印 data-fullscreen は page() が書く 26 枚だけ', () => {
+  const all = [...APP, ...POSTER, ...LAB, '404.html'];
+  const marked = all.filter((p) => /<body[^>]*\sdata-fullscreen[\s>]/.test(read(p)));
+  assert.deepStrictEqual(marked, APP);
+  assert.strictEqual(marked.length, 26);
+  assert.ok(!/<body[^>]*data-fullscreen/.test(read('poster/index.html')));
+});
+
 test('sitemap: 入口の日英とポスター（月ごとのページは載せない）・hreflang つき', () => {
   const xml = read('sitemap.xml');
   assert.deepStrictEqual([...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]), [BASE, `${BASE}en/`, `${BASE}poster/`]);
