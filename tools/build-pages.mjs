@@ -15,12 +15,12 @@ const W = require('../render/wow.js');   // 企画書 75（フル版だけの機
 const ART_CREDIT = require('../render/art.js').CREDIT;   // 星座絵の出典（企画書 75 の 3。art.js は画面では押したときに初めて読む）
 const OG = JSON.parse(fs.readFileSync(path.join(ROOT, 'og', 'og.json'), 'utf8'));
 
-export const SITE = 'https://yorozu-craft.com';
+const SITE = 'https://yorozu-craft.com';
 export const BASE = `${SITE}/hoshizora-night/`;
 const BEACON = `<!-- Cloudflare Web Analytics（Cookie を使わないアクセス解析） --><script type='module' src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "b79bf821e1fd4b6683866d493b1de426"}'></script><!-- End Cloudflare Web Analytics -->`;
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
-export const META = {
+const META = {
   ja: {
     title: 'ほしぞらさんぽ フル版｜今夜の星空を大きな画面で｜yorozu-craft',
     desc: '星空さんぽと同じ計算で、今夜の星空を濃紺の空とにじむ星の光で描きます。時間が流れ、星がゆっくり動きます。広告なし・登録なし。',
@@ -211,7 +211,7 @@ export const POSTER = {
   desc: '生まれた日や記念日の日付・時刻・場所の星空を、A4・A3・B5 の印刷用 PDF と PNG（300・350 dpi）にします。星の位置は星空さんぽと同じ計算。無料・広告なし・登録なし、入力は端末の外に出ません。',
   url: `${BASE}poster/`,
 };
-export function posterPage() {
+function posterPage() {
   const ld = { '@context': 'https://schema.org', '@type': 'WebApplication', name: '生まれた日の星空ポスター', url: POSTER.url, applicationCategory: 'DesignApplication',
     operatingSystem: 'Any', inLanguage: 'ja', offers: { '@type': 'Offer', price: '0', priceCurrency: 'JPY' }, description: POSTER.desc };
   const opt = (v, t, sel) => `<option value="${v}"${sel ? ' selected' : ''}>${t}</option>`;
