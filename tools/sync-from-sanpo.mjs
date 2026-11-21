@@ -17,21 +17,21 @@ import { createRequire } from 'node:module';
 
 // 写すファイル（写し先の名前 → 通常版のパス）。official-events.js は「今夜の見どころ」用（ROADMAP 7.15.1 の 7）
 // text.js は星・月・惑星の説明シートの文（日本語・ひらがな・英語。企画書 74: 軽量版の説明文を手で写さない）
-export const SOURCES = { 'astro.js': 'astro.js', 'catalog.js': 'catalog.js', 'data.js': 'data.js', 'official-events.js': 'tools/official-events.js', 'text.js': 'text.js' };
-export const FILES = Object.keys(SOURCES);
-export const REPO = 'YouheiOonuki/hoshizora-sanpo';
+const SOURCES = { 'astro.js': 'astro.js', 'catalog.js': 'catalog.js', 'data.js': 'data.js', 'official-events.js': 'tools/official-events.js', 'text.js': 'text.js' };
+const FILES = Object.keys(SOURCES);
+const REPO = 'YouheiOonuki/hoshizora-sanpo';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const ENGINE = path.join(ROOT, 'engine');
 
 export const sha256 = (buf) => crypto.createHash('sha256').update(buf).digest('hex');
 
 /** 写しの先頭行。1 行に収める（2 行目以降を元と比べるため） */
-export function headerLine(file, commit, checked, hash) {
+function headerLine(file, commit, checked, hash) {
   return `/* 生成物・手で編集しない: ${REPO}@${commit} の ${SOURCES[file] || file} を tools/sync-from-sanpo.mjs で写した（確認日 ${checked}、元の sha256 ${hash}） */\n`;
 }
 
 /** 写しから先頭行を外して元の中身に戻す */
-export function stripHeader(text) {
+function stripHeader(text) {
   const i = text.indexOf('\n');
   if (!text.startsWith('/* 生成物・手で編集しない: ') || i < 0) throw new Error('生成の印（先頭行）がありません');
   return text.slice(i + 1);
@@ -63,7 +63,7 @@ async function readSource(commit, file) {
 }
 
 /** calendar-pages.js（日本語）・calendar-pages-en.js（英語）の流星群の表から { id: 名前 } を取り出す（読み込まずに文字列から） */
-export function showerNames(text, table) {
+function showerNames(text, table) {
   const i = text.indexOf(`const ${table} = {`);
   if (i < 0) throw new Error(`${table} がありません`);
   const body = text.slice(i, text.indexOf('\n};', i));
@@ -73,7 +73,7 @@ export function showerNames(text, table) {
 }
 
 /** calendar-pages.js の SHOWERS から { id: [赤経, 赤緯] }（radiant のあるものだけ） */
-export function radiants(text) {
+function radiants(text) {
   const i = text.indexOf('const SHOWERS = {');
   const body = text.slice(i, text.indexOf('\n};', i));
   const out = {};
@@ -105,7 +105,7 @@ async function checkNames(commit) {
 
 /** 軽量版の英語の画面（en/index.html）の文字（要素の中の文字と aria-label・placeholder・label）を 1 行ずつ。
     フル版の英語のボタン・パネルの文字が軽量版と同じかを tests/look.test.js が確かめるための写し（tests/fixtures/sanpo-en-strings.txt） */
-export function enStrings(html) {
+function enStrings(html) {
   const body = html.slice(html.indexOf('<body')).replace(/<script[\s\S]*?<\/script>/g, '').replace(/<!--[\s\S]*?-->/g, '');
   const out = new Set();
   for (const m of body.matchAll(/>([^<]+)</g)) { const t = m[1].replace(/\s+/g, ' ').trim(); if (t) out.add(t); }

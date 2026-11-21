@@ -53,5 +53,3 @@ if (require.main === module) (async () => {
   fs.writeFileSync(path.join(OGDIR, 'og.json'), JSON.stringify(S, null, 2) + '\n');
   if (!process.argv.includes('--json')) await shoot(S);
 })().catch((e) => { console.error(e); process.exit(1); });
-
-module.exports = { spec };
